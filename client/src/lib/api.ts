@@ -94,6 +94,18 @@ export async function deleteServidor(id: number): Promise<void> {
   }
 }
 
+export async function deleteServidoresBulk(ids: number[]): Promise<void> {
+  const res = await fetch(`${API_URL}/servidores/bulk-delete`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ ids }),
+  })
+  
+  if (!res.ok) {
+    throw new Error('Error en eliminación masiva')
+  }
+}
+
 export async function importServidores(servidores: Partial<Servidor>[]): Promise<ImportResult> {
   const res = await fetch(`${API_URL}/servidores/import`, {
     method: 'POST',
@@ -140,6 +152,18 @@ export async function deleteInventarioFisico(id: number): Promise<void> {
   
   if (!res.ok) {
     throw new Error('Error al eliminar item')
+  }
+}
+
+export async function deleteInventarioFisicoBulk(ids: number[]): Promise<void> {
+  const res = await fetch(`${API_URL}/inventario-fisico/bulk-delete`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ ids }),
+  })
+  
+  if (!res.ok) {
+    throw new Error('Error en eliminación masiva')
   }
 }
 

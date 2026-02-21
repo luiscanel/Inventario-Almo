@@ -261,8 +261,10 @@ export async function getAvailabilityStats() {
   })
 
   const porEstado = toSortedArray(groupBy(servidores, 'estado'))
+  const porAmbiente = toSortedArray(groupBy(servidores, 'ambiente'))
+  const porPais = toSortedArray(groupBy(servidores, 'pais'))
 
-  const vmsInactivas = servidores
+  const vmsInactivos = servidores
     .filter(s => s.estado === 'Inactivo')
     .map(s => ({
       id: s.id,
@@ -270,6 +272,29 @@ export async function getAvailabilityStats() {
       nombreVM: s.nombreVM,
       ip: s.ip,
       pais: s.pais,
+      ambiente: s.ambiente,
+      updatedAt: s.updatedAt
+    }))
+
+  const vmsMantenimiento = servidores
+    .filter(s => s.estado === 'Mantenimiento')
+    .map(s => ({
+      id: s.id,
+      host: s.host,
+      nombreVM: s.nombreVM,
+      pais: s.pais,
+      ambiente: s.ambiente,
+      updatedAt: s.updatedAt
+    }))
+
+  const vmsDecomisionados = servidores
+    .filter(s => s.estado === 'Decomisionado')
+    .map(s => ({
+      id: s.id,
+      host: s.host,
+      nombreVM: s.nombreVM,
+      pais: s.pais,
+      ambiente: s.ambiente,
       updatedAt: s.updatedAt
     }))
 
@@ -281,19 +306,34 @@ export async function getAvailabilityStats() {
     timeline[mes][s.estado] = (timeline[mes][s.estado] || 0) + 1
   })
 
-  const porMes = Object.entries(timeline)
-    .map(([mes, estados]) => ({
-      mes,
+  const timelineData = Object.entries(timeline)
+    .map(([periodo, estados]) => ({
+      periodo,
+      count: Object.values(estados).reduce((a, b) => a + b, 0),
       ...estados
     }))
-    .sort((a, b) => a.mes.localeCompare(b.mes))
+    .sort((a, b) => a.periodo.localeCompare(b.periodo))
     .slice(-12)
+
+  // Calcular stats
+  const vmsActivos = servidores.filter(s => s.estado === 'Activo').length
+  const vmsNoActivos = servidores.length - vmsActivos
+  const porcentajeActivos = servidores.length > 0 
+    ? Math.round((vmsActivos / servidores.length) * 100) 
+    : 0
 
   return {
     totalVMs: servidores.length,
+    vmsActivos,
+    vmsNoActivos,
+    porcentajeActivos,
     porEstado,
-    vmsInactivas,
-    porMes,
+    porAmbiente,
+    porPais,
+    vmsInactivos,
+    vmsMantenimiento,
+    vmsDecomisionados,
+    timeline: timelineData,
     ultimaActualizacion: servidores[0]?.updatedAt
   }
 }

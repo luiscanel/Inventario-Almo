@@ -57,6 +57,23 @@ router.delete('/:id', async (req, res) => {
   }
 })
 
+// Eliminación masiva
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body as { ids: number[] }
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Se requiere un array de IDs' })
+    }
+    await prisma.servidor.deleteMany({
+      where: { id: { in: ids } }
+    })
+    res.json({ message: `${ids.length} servidores eliminados` })
+  } catch (error) {
+    console.error('Error:', error)
+    res.status(500).json({ message: 'Error en eliminación masiva' })
+  }
+})
+
 // Importar múltiples servidores
 router.post('/import', async (req, res) => {
   try {

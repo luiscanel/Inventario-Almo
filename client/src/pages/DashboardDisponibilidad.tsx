@@ -39,9 +39,9 @@ interface AvailabilityStats {
   vmsActivos: number
   vmsNoActivos: number
   porcentajeActivos: number
-  porEstado: { estado: string; count: number }[]
-  porAmbiente: { ambiente: string; count: number }[]
-  porPais: { pais: string; count: number }[]
+  porEstado: { name: string; count: number }[]
+  porAmbiente: { name: string; count: number }[]
+  porPais: { name: string; count: number }[]
   vmsInactivos: {
     id: number
     host: string
@@ -127,10 +127,7 @@ export default function DashboardDisponibilidad() {
     )
   }
 
-  const estadoData = stats?.porEstado?.map(e => ({
-    name: e.estado,
-    value: e.count
-  })) || []
+  const estadoData = stats?.porEstado || []
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -248,7 +245,7 @@ export default function DashboardDisponibilidad() {
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.porAmbiente || []}>
+                <BarChart data={(stats?.porAmbiente || []).map(e => ({ ambiente: e.name, count: e.count }))}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
                   <XAxis dataKey="ambiente" tick={{ fontSize: 11 }} tickLine={false} />
                   <YAxis tick={{ fontSize: 11 }} tickLine={false} />
@@ -271,7 +268,7 @@ export default function DashboardDisponibilidad() {
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.porPais?.slice(0, 8) || []}>
+                <BarChart data={(stats?.porPais || []).slice(0, 8).map(e => ({ pais: e.name, count: e.count }))}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
                   <XAxis dataKey="pais" tick={{ fontSize: 10 }} tickLine={false} />
                   <YAxis tick={{ fontSize: 11 }} tickLine={false} />

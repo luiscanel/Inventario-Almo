@@ -19,10 +19,10 @@ import {
   DialogFooter 
 } from '@/components/ui/dialog'
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/select'
-import { getServidores, createServidor, updateServidor, deleteServidor, importServidores } from '@/lib/api'
+import { getServidores, createServidor, updateServidor, deleteServidor, deleteServidoresBulk, importServidores } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
 import { Servidor } from '@/types'
-import { Plus, Pencil, Trash2, Search, Download, Upload, Columns2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Download, Upload, Columns2, Check, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 const ambientes = ['Produccion', 'Desarrollo', 'Testing', 'Staging']
@@ -74,6 +74,8 @@ export default function Inventory() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [servidorToDelete, setServidorToDelete] = useState<number | null>(null)
   const [columnsDialogOpen, setColumnsDialogOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [selectMode, setSelectMode] = useState(false)
   // Force all default columns to be visible
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'pais', 'host', 'nombreVM', 'ip', 'cpu', 'memoria', 'disco', 
@@ -159,6 +161,33 @@ export default function Inventory() {
   const confirmDelete = (id: number) => {
     setServidorToDelete(id)
     setDeleteConfirmOpen(true)
+  }
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredServidores.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filteredServidores.map(s => s.id))
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return
+    try {
+      await deleteServidoresBulk(selectedIds)
+      toast({ title: `${selectedIds.length} servidores eliminados` })
+      setSelectedIds([])
+      setSelectMode(false)
+      loadServidores()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    }
   }
 
   const downloadTemplate = () => {
@@ -353,6 +382,23 @@ export default function Inventory() {
             <Columns2 className="w-4 h-4 mr-2" />
             Columnas
           </Button>
+          {selectMode ? (
+            <>
+              <Button variant="outline" onClick={() => { setSelectMode(false); setSelectedIds([]) }}>
+                <X className="w-4 h-4 mr-2" />
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={handleBulkDelete} disabled={selectedIds.length === 0}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Eliminar ({selectedIds.length})
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => setSelectMode(true)}>
+              <Check className="w-4 h-4 mr-2" />
+              Seleccionar
+            </Button>
+          )}
           <Button onClick={() => { setFormData(emptyServidor); setEditingServidor(null); setIsDialogOpen(true) }}>
             <Plus className="w-4 h-4 mr-2" />
             Nuevo Servidor
@@ -382,10 +428,20 @@ export default function Inventory() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {selectMode && (
+                      <TableHead className="w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.length === filteredServidores.length && filteredServidores.length > 0}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4"
+                        />
+                      </TableHead>
+                    )}
                     {allColumns.filter(c => visibleColumns.includes(c.key)).map(col => (
                       <TableHead key={col.key}>{col.label}</TableHead>
                     ))}
-                    <TableHead className="text-right">Acciones</TableHead>
+                    {!selectMode && <TableHead className="text-right">Acciones</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -397,20 +453,32 @@ export default function Inventory() {
                     </TableRow>
                   ) : (
                     filteredServidores.map((servidor) => (
-                      <TableRow key={servidor.id}>
+                      <TableRow key={servidor.id} className={selectedIds.includes(servidor.id) ? 'bg-blue-50' : ''}>
+                        {selectMode && (
+                          <TableCell className="w-10">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(servidor.id)}
+                              onChange={() => toggleSelect(servidor.id)}
+                              className="w-4 h-4"
+                            />
+                          </TableCell>
+                        )}
                         {allColumns.filter(c => visibleColumns.includes(c.key)).map(col => (
                           <TableCell key={col.key}>{renderCell(servidor, col.key)}</TableCell>
                         ))}
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(servidor)}>
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => confirmDelete(servidor.id)}>
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                        {!selectMode && (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(servidor)}>
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => confirmDelete(servidor.id)}>
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}

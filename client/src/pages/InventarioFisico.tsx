@@ -18,9 +18,9 @@ import {
   DialogTitle, 
   DialogFooter 
 } from '@/components/ui/dialog'
-import { getInventarioFisico, createInventarioFisico, updateInventarioFisico, deleteInventarioFisico, importInventarioFisico } from '@/lib/api'
+import { getInventarioFisico, createInventarioFisico, updateInventarioFisico, deleteInventarioFisico, deleteInventarioFisicoBulk, importInventarioFisico } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, Pencil, Trash2, Search, Download, Upload } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Download, Upload, Check, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 const emptyItem = {
@@ -47,6 +47,8 @@ export default function InventarioFisico() {
   const [formData, setFormData] = useState(emptyItem)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<number | null>(null)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [selectMode, setSelectMode] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -115,6 +117,33 @@ export default function InventarioFisico() {
       toast({ title: 'Item eliminado' })
       setDeleteConfirmOpen(false)
       setItemToDelete(null)
+      loadItems()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    }
+  }
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredItems.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filteredItems.map(i => i.id))
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return
+    try {
+      await deleteInventarioFisicoBulk(selectedIds)
+      toast({ title: `${selectedIds.length} equipos eliminados` })
+      setSelectedIds([])
+      setSelectMode(false)
       loadItems()
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message })
@@ -227,6 +256,23 @@ export default function InventarioFisico() {
             Importar
           </Button>
           <input id="file-input-fisico" type="file" accept=".xlsx,.xls" onChange={handleFileUpload} className="hidden" />
+          {selectMode ? (
+            <>
+              <Button variant="outline" onClick={() => { setSelectMode(false); setSelectedIds([]) }}>
+                <X className="h-4 w-4 mr-2" />
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={handleBulkDelete} disabled={selectedIds.length === 0}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar ({selectedIds.length})
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => setSelectMode(true)}>
+              <Check className="h-4 w-4 mr-2" />
+              Seleccionar
+            </Button>
+          )}
           <Button onClick={openNewDialog}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo
@@ -250,6 +296,16 @@ export default function InventarioFisico() {
           <Table>
             <TableHeader>
               <TableRow>
+                {selectMode && (
+                  <TableHead className="w-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.length === filteredItems.length && filteredItems.length > 0}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4"
+                    />
+                  </TableHead>
+                )}
                 <TableHead>País</TableHead>
                 <TableHead>Equipo</TableHead>
                 <TableHead>Responsable</TableHead>
@@ -261,17 +317,27 @@ export default function InventarioFisico() {
                 <TableHead>Serial</TableHead>
                 <TableHead>SO</TableHead>
                 <TableHead>Garantía</TableHead>
-                <TableHead>Acciones</TableHead>
+                {!selectMode && <TableHead>Acciones</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={12}>Cargando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={selectMode ? 13 : 12}>Cargando...</TableCell></TableRow>
               ) : filteredItems.length === 0 ? (
-                <TableRow><TableCell colSpan={12}>No hay registros</TableCell></TableRow>
+                <TableRow><TableCell colSpan={selectMode ? 13 : 12}>No hay registros</TableCell></TableRow>
               ) : (
                 filteredItems.map((item) => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className={selectedIds.includes(item.id) ? 'bg-blue-50' : ''}>
+                    {selectMode && (
+                      <TableCell className="w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(item.id)}
+                          onChange={() => toggleSelect(item.id)}
+                          className="w-4 h-4"
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>{item.pais}</TableCell>
                     <TableCell>{item.equipo}</TableCell>
                     <TableCell>{item.responsable}</TableCell>
@@ -283,16 +349,18 @@ export default function InventarioFisico() {
                     <TableCell>{item.serial}</TableCell>
                     <TableCell>{item.sistemaOperativo}</TableCell>
                     <TableCell>{item.garantia}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => { setItemToDelete(item.id); setDeleteConfirmOpen(true) }}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {!selectMode && (
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => { setItemToDelete(item.id); setDeleteConfirmOpen(true) }}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
