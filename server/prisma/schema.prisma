@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -7,14 +8,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Roles predefinidos del sistema
+model Rol {
+  id          Int          @id @default(autoincrement())
+  nombre      String       @unique
+  descripcion String?
+  permisos    Permiso[]
+  usuarios    UsuarioRol[]
+  createdAt   DateTime     @default(now())
+}
+
+// Permisos granulares por módulo
+model Permiso {
+  id     Int    @id @default(autoincrement())
+  modulo String // dashboard, inventario_servidores, inventario_fisico, informes, email, admin
+  accion String // ver, crear, editar, eliminar, exportar, enviar
+  roles  Rol[]
+
+  @@unique([modulo, accion])
+}
+
+// Relación muchos a muchos usuarios-roles
+model UsuarioRol {
+  usuarioId Int
+  rolId     Int
+  usuario   User @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  rol       Rol  @relation(fields: [rolId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, rolId])
+}
+
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  nombre    String
-  rol       String   @default("user")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  password     String
+  nombre       String
+  rol          String        @default("user") // rol legacy para compatibilidad
+  activo       Boolean       @default(true)
+  usuarioRoles UsuarioRol[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Servidor {

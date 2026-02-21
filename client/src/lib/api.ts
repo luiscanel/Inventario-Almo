@@ -1,5 +1,11 @@
 import { useAuthStore } from '@/store/authStore'
-import type { Servidor, Usuario, InventarioFisico, SecurityStats, ResourcesStats, EmailConfig, ImportResult } from '@/types/api'
+import type { Servidor, Usuario, InventarioFisico, SecurityStats, ResourcesStats, EmailConfig, ImportResult, Permiso } from '@/types/api'
+
+// Tipo para respuesta de login
+export interface LoginResponse {
+  token: string
+  user: Usuario & { roles: string[]; permisos: Permiso[] }
+}
 
 const API_URL = '/api'
 
@@ -37,7 +43,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 // Authentication
 // ============================================
 
-export async function login(email: string, password: string) {
+export async function login(email: string, password: string): Promise<LoginResponse> {
   const res = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -51,7 +57,7 @@ export async function login(email: string, password: string) {
   
   const data = await res.json()
   localStorage.setItem('token', data.token)
-  return data
+  return data as LoginResponse
 }
 
 // ============================================
@@ -223,7 +229,55 @@ export async function getDashboardResponsables() {
 }
 
 // ============================================
-// Admin
+// Admin - Roles
+// ============================================
+
+export async function getRoles() {
+  const res = await fetch(`${API_URL}/admin/roles`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<any[]>(res)
+}
+
+export async function getPermisos() {
+  const res = await fetch(`${API_URL}/admin/permisos`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<any>(res)
+}
+
+export async function createRol(data: { nombre: string; descripcion?: string; permisos?: string[] }) {
+  const res = await fetch(`${API_URL}/admin/roles`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse<any>(res)
+}
+
+export async function updateRol(id: number, data: { nombre?: string; descripcion?: string; permisos?: string[] }) {
+  const res = await fetch(`${API_URL}/admin/roles/${id}`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse<any>(res)
+}
+
+export async function deleteRol(id: number) {
+  const res = await fetch(`${API_URL}/admin/roles/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Error al eliminar rol' }))
+    throw new Error(error.message)
+  }
+  return res.json()
+}
+
+// ============================================
+// Admin - Usuarios
 // ============================================
 
 export async function getUsuarios(): Promise<Usuario[]> {
@@ -233,13 +287,34 @@ export async function getUsuarios(): Promise<Usuario[]> {
   return handleResponse<Usuario[]>(res)
 }
 
-export async function createUsuario(data: { email: string; nombre: string; password: string; rol: string }): Promise<Usuario> {
+export async function createUsuario(data: { email: string; nombre: string; password: string; rol: string; activo?: boolean }): Promise<Usuario> {
   const res = await fetch(`${API_URL}/admin/usuarios`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(data),
   })
   return handleResponse<Usuario>(res)
+}
+
+export async function updateUsuario(id: number, data: { nombre?: string; rol?: string; activo?: boolean; password?: string }): Promise<Usuario> {
+  const res = await fetch(`${API_URL}/admin/usuarios/${id}`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse<Usuario>(res)
+}
+
+export async function deleteUsuario(id: number) {
+  const res = await fetch(`${API_URL}/admin/usuarios/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Error al eliminar usuario' }))
+    throw new Error(error.message)
+  }
+  return res.json()
 }
 
 export async function deleteAllServidores(): Promise<void> {

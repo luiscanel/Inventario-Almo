@@ -18,24 +18,31 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 
-const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/inventory', icon: Server, label: 'Inventario de VMs' },
-  { to: '/inventario-fisico', icon: HardDrive, label: 'Inventario Físico' },
-  { to: '/seguridad', icon: Shield, label: 'Seguridad' },
-  { to: '/recursos', icon: Cpu, label: 'Recursos' },
-  { to: '/disponibilidad', icon: Activity, label: 'Disponibilidad' },
-  { to: '/inventario-fisico-detalle', icon: HardDrive, label: 'Inventario Físico' },
-  { to: '/responsables', icon: User, label: 'Responsables' },
-  { to: '/reports', icon: FileText, label: 'Informes' },
-  { to: '/email', icon: Mail, label: 'Email' },
-  { to: '/admin', icon: Users, label: 'Admin' },
+// Definición de módulos con sus permisos requeridos
+// Si no tiene permiso, igual se muestra pero podría redireccionar
+const modulos = [
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard', permiso: null }, // Siempre visible
+  { to: '/inventory', icon: Server, label: 'Inventario de VMs', permiso: { modulo: 'inventario_servidores', accion: 'ver' } },
+  { to: '/inventario-fisico', icon: HardDrive, label: 'Inventario Físico', permiso: { modulo: 'inventario_fisico', accion: 'ver' } },
+  { to: '/seguridad', icon: Shield, label: 'Seguridad', permiso: null },
+  { to: '/recursos', icon: Cpu, label: 'Recursos', permiso: null },
+  { to: '/disponibilidad', icon: Activity, label: 'Disponibilidad', permiso: null },
+  { to: '/inventario-fisico-detalle', icon: HardDrive, label: 'Inv. Físico Detalle', permiso: { modulo: 'inventario_fisico', accion: 'ver' } },
+  { to: '/responsables', icon: User, label: 'Responsables', permiso: null },
+  { to: '/reports', icon: FileText, label: 'Informes', permiso: { modulo: 'informes', accion: 'ver' } },
+  { to: '/email', icon: Mail, label: 'Email', permiso: { modulo: 'email', accion: 'ver' } },
+  { to: '/admin', icon: Users, label: 'Admin', permiso: { modulo: 'admin', accion: 'ver' } },
 ]
 
 export default function Layout() {
-  const { user, logout } = useAuthStore()
+  const { user, logout, permisos, tienePermiso } = useAuthStore()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Solo filtrar si ya tenemos permisos cargados, si no mostrar todo
+  const navItems = permisos.length > 0 
+    ? modulos.filter(m => !m.permiso || tienePermiso(m.permiso.modulo, m.permiso.accion))
+    : modulos
 
   const handleLogout = () => {
     logout()

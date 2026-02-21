@@ -20,17 +20,49 @@ router.post('/login', async (req, res) => {
     }
 
     const usuario = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
+      where: { email: email.toLowerCase() },
+      include: {
+        usuarioRoles: {
+          include: {
+            rol: {
+              include: {
+                permisos: true
+              }
+            }
+          }
+        }
+      }
     })
 
     if (!usuario) {
       return res.status(401).json({ message: 'Credenciales inválidas' })
     }
 
+    if (!usuario.activo) {
+      return res.status(401).json({ message: 'Usuario inactivo' })
+    }
+
     const validPassword = await bcrypt.compare(password, usuario.password)
     if (!validPassword) {
       return res.status(401).json({ message: 'Credenciales inválidas' })
     }
+
+    // Extraer permisos únicos
+    const permisosSet = new Set<string>()
+    const permisos: { modulo: string; accion: string }[] = []
+
+    for (const ur of usuario.usuarioRoles) {
+      for (const p of ur.rol.permisos) {
+        const key = `${p.modulo}_${p.accion}`
+        if (!permisosSet.has(key)) {
+          permisosSet.add(key)
+          permisos.push({ modulo: p.modulo, accion: p.accion })
+        }
+      }
+    }
+
+    // Extraer nombres de roles
+    const roles = usuario.usuarioRoles.map(ur => ur.rol.nombre)
 
     const token = jwt.sign(
       { id: usuario.id, email: usuario.email, rol: usuario.rol },
@@ -44,7 +76,9 @@ router.post('/login', async (req, res) => {
         id: usuario.id,
         email: usuario.email,
         nombre: usuario.nombre,
-        rol: usuario.rol
+        rol: usuario.rol,
+        roles,
+        permisos
       }
     })
   } catch (error) {

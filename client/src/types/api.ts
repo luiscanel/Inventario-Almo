@@ -1,4 +1,34 @@
 // Tipos centralizados para el API
+
+// ======================
+// Tipos de Usuario y Auth
+// ======================
+export interface Permiso {
+  modulo: string
+  accion: string
+}
+
+export type RolNombre = 'admin' | 'gerencia' | 'redes' | 'soporte' | 'infra' | 'base_datos'
+
+export interface Usuario {
+  id: number
+  email: string
+  nombre: string
+  rol: string
+  activo: boolean
+  createdAt: string
+  roles?: string[]
+  permisos?: Permiso[]
+}
+
+export interface UsuarioLogin extends Usuario {
+  roles: string[]
+  permisos: Permiso[]
+}
+
+// ======================
+// Tipos de Servidores
+// ======================
 export interface Servidor {
   id: number
   pais: string
@@ -19,15 +49,9 @@ export interface Servidor {
   updatedAt: Date
 }
 
-export interface Usuario {
-  id: number
-  email: string
-  nombre: string
-  rol: 'admin' | 'editor' | 'viewer'
-  activo: boolean
-  createdAt: string
-}
-
+// ======================
+// Tipos de Inventario Físico
+// ======================
 export interface InventarioFisico {
   id: number
   pais: string
@@ -43,6 +67,9 @@ export interface InventarioFisico {
   updatedAt: Date
 }
 
+// ======================
+// Tipos de Dashboard
+// ======================
 export interface DashboardStats {
   total: number
   activos: number
@@ -84,6 +111,9 @@ export interface ResourcesStats {
   topDisco: any[]
 }
 
+// ======================
+// Tipos de Email
+// ======================
 export interface EmailConfig {
   id?: number
   host: string
@@ -95,7 +125,9 @@ export interface EmailConfig {
   activo?: boolean
 }
 
-// Tipos para respuestas API
+// ======================
+// Tipos Genéricos
+// ======================
 export interface ApiResponse<T> {
   data?: T
   message?: string

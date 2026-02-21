@@ -19,39 +19,73 @@ import {
   DialogTitle, 
   DialogFooter 
 } from '@/components/ui/dialog'
-import { getUsuarios, createUsuario } from '@/lib/api'
+import { 
+  getUsuarios, createUsuario, updateUsuario, deleteUsuario,
+  getRoles, createRol, updateRol, deleteRol,
+  getPermisos
+} from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
-import { Users, Plus, Shield, UserCheck } from 'lucide-react'
+import { Users, Plus, Shield, Trash2, Edit } from 'lucide-react'
+import type { Usuario } from '@/types/api'
 
-interface Usuario {
+// Tipos locales
+interface Rol {
   id: number
-  email: string
   nombre: string
-  rol: 'admin' | 'editor' | 'viewer'
-  activo: boolean
-  createdAt: string
+  descripcion: string
+  permisos: any[]
+  usuariosCount: number
+}
+
+interface PermisoData {
+  permisos: any[]
+  grouped: Record<string, string[]>
 }
 
 export default function Admin() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [roles, setRoles] = useState<Rol[]>([])
+  const [permisos, setPermisos] = useState<PermisoData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [formData, setFormData] = useState({
+  const [activeTab, setActiveTab] = useState<'usuarios' | 'roles'>('usuarios')
+  
+  // Dialogs
+  const [isUsuarioDialogOpen, setIsUsuarioDialogOpen] = useState(false)
+  const [isRolDialogOpen, setIsRolDialogOpen] = useState(false)
+  const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null)
+  const [editingRol, setEditingRol] = useState<Rol | null>(null)
+  
+  // Forms
+  const [usuarioForm, setUsuarioForm] = useState({
     email: '',
     nombre: '',
     password: '',
-    rol: 'editor' as 'admin' | 'editor' | 'viewer'
+    rol: 'soporte' as string,
+    activo: true
   })
+  
+  const [rolForm, setRolForm] = useState({
+    nombre: '',
+    descripcion: '',
+    permisos: [] as string[]
+  })
+  
   const { toast } = useToast()
 
   useEffect(() => {
-    loadUsuarios()
+    loadData()
   }, [])
 
-  const loadUsuarios = async () => {
+  const loadData = async () => {
     try {
-      const data = await getUsuarios()
-      setUsuarios(data)
+      const [usuariosData, rolesData, permisosData] = await Promise.all([
+        getUsuarios(),
+        getRoles(),
+        getPermisos()
+      ])
+      setUsuarios(usuariosData)
+      setRoles(rolesData)
+      setPermisos(permisosData)
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -59,185 +93,449 @@ export default function Admin() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ========================
+  // USUARIOS
+  // ========================
+  
+  const handleUsuarioSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.email.toLowerCase().endsWith('@grupoalmo.com')) {
+    if (!usuarioForm.email.toLowerCase().endsWith('@grupoalmo.com')) {
       toast({ variant: 'destructive', title: 'Error', description: 'Solo se permiten correos con dominio @grupoalmo.com' })
       return
     }
 
     try {
-      await createUsuario(formData)
-      toast({ title: 'Usuario creado correctamente' })
-      setIsDialogOpen(false)
-      setFormData({ email: '', nombre: '', password: '', rol: 'editor' })
-      loadUsuarios()
+      if (editingUsuario) {
+        await updateUsuario(editingUsuario.id, {
+          nombre: usuarioForm.nombre,
+          rol: usuarioForm.rol,
+          activo: usuarioForm.activo,
+          password: usuarioForm.password || undefined
+        })
+        toast({ title: 'Usuario actualizado correctamente' })
+      } else {
+        await createUsuario(usuarioForm)
+        toast({ title: 'Usuario creado correctamente' })
+      }
+      setIsUsuarioDialogOpen(false)
+      resetUsuarioForm()
+      loadData()
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message })
     }
   }
 
+  const handleDeleteUsuario = async (id: number) => {
+    if (!confirm('¿Estás seguro de eliminar este usuario?')) return
+    
+    try {
+      await deleteUsuario(id)
+      toast({ title: 'Usuario eliminado' })
+      loadData()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    }
+  }
+
+  const openUsuarioDialog = (usuario?: Usuario) => {
+    if (usuario) {
+      setEditingUsuario(usuario)
+      setUsuarioForm({
+        email: usuario.email,
+        nombre: usuario.nombre,
+        password: '',
+        rol: usuario.rol,
+        activo: usuario.activo
+      })
+    } else {
+      resetUsuarioForm()
+    }
+    setIsUsuarioDialogOpen(true)
+  }
+
+  const resetUsuarioForm = () => {
+    setEditingUsuario(null)
+    setUsuarioForm({ email: '', nombre: '', password: '', rol: 'soporte', activo: true })
+  }
+
+  // ========================
+  // ROLES
+  // ========================
+
+  const handleRolSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!rolForm.nombre) {
+      toast({ variant: 'destructive', title: 'Error', description: 'El nombre del rol es requerido' })
+      return
+    }
+
+    try {
+      if (editingRol) {
+        await updateRol(editingRol.id, {
+          nombre: rolForm.nombre,
+          descripcion: rolForm.descripcion,
+          permisos: rolForm.permisos
+        })
+        toast({ title: 'Rol actualizado correctamente' })
+      } else {
+        await createRol(rolForm)
+        toast({ title: 'Rol creado correctamente' })
+      }
+      setIsRolDialogOpen(false)
+      resetRolForm()
+      loadData()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    }
+  }
+
+  const handleDeleteRol = async (id: number) => {
+    if (!confirm('¿Estás seguro de eliminar este rol?')) return
+    
+    try {
+      await deleteRol(id)
+      toast({ title: 'Rol eliminado' })
+      loadData()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    }
+  }
+
+  const openRolDialog = (rol?: Rol) => {
+    if (rol) {
+      setEditingRol(rol)
+      setRolForm({
+        nombre: rol.nombre,
+        descripcion: rol.descripcion || '',
+        permisos: rol.permisos.map(p => `${p.modulo}_${p.accion}`)
+      })
+    } else {
+      resetRolForm()
+    }
+    setIsRolDialogOpen(true)
+  }
+
+  const resetRolForm = () => {
+    setEditingRol(null)
+    setRolForm({ nombre: '', descripcion: '', permisos: [] })
+  }
+
+  const togglePermiso = (permiso: string) => {
+    setRolForm(prev => ({
+      ...prev,
+      permisos: prev.permisos.includes(permiso)
+        ? prev.permisos.filter(p => p !== permiso)
+        : [...prev.permisos, permiso]
+    }))
+  }
+
+  // ========================
+  // HELPERS
+  // ========================
+
+  const getRolLabel = (rol: string) => {
+    const labels: Record<string, string> = {
+      admin: 'Administrador',
+      gerencia: 'Gerencia',
+      redes: 'Redes',
+      soporte: 'Soporte',
+      infra: 'Infraestructura',
+      base_datos: 'Base de Datos'
+    }
+    return labels[rol] || rol
+  }
+
   const getRolColor = (rol: string) => {
     switch (rol) {
       case 'admin': return 'bg-purple-100 text-purple-800'
-      case 'editor': return 'bg-blue-100 text-blue-800'
-      case 'viewer': return 'bg-gray-100 text-gray-800'
+      case 'gerencia': return 'bg-yellow-100 text-yellow-800'
+      case 'redes': return 'bg-blue-100 text-blue-800'
+      case 'soporte': return 'bg-green-100 text-green-800'
+      case 'infra': return 'bg-orange-100 text-orange-800'
+      case 'base_datos': return 'bg-red-100 text-red-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
 
-  const stats = {
-    total: usuarios.length,
-    admins: usuarios.filter(u => u.rol === 'admin').length,
-    activos: usuarios.filter(u => u.activo).length
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Administración</h1>
-          <p className="text-gray-500 mt-1">Gestión de usuarios y permisos</p>
+          <h1 className="text-3xl font-bold">Administración</h1>
+          <p className="text-muted-foreground">Gestiona usuarios y roles del sistema</p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nuevo Usuario
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 border-b pb-2">
+        <Button
+          variant={activeTab === 'usuarios' ? 'default' : 'ghost'}
+          onClick={() => setActiveTab('usuarios')}
+        >
+          <Users className="w-4 h-4 mr-2" />
+          Usuarios ({usuarios.length})
+        </Button>
+        <Button
+          variant={activeTab === 'roles' ? 'default' : 'ghost'}
+          onClick={() => setActiveTab('roles')}
+        >
+          <Shield className="w-4 h-4 mr-2" />
+          Roles ({roles.length})
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Users className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Total Usuarios</p>
-              <p className="text-2xl font-bold">{stats.total}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <Shield className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Administradores</p>
-              <p className="text-2xl font-bold">{stats.admins}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <UserCheck className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Usuarios Activos</p>
-              <p className="text-2xl font-bold">{stats.activos}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* USUARIOS TAB */}
+      {activeTab === 'usuarios' && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => openUsuarioDialog()}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nuevo Usuario
+            </Button>
+          </div>
 
-      {/* Users Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Usuarios Registrados</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Rol</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Fecha de Registro</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {usuarios.map((usuario) => (
-                  <TableRow key={usuario.id}>
-                    <TableCell className="font-medium">{usuario.nombre}</TableCell>
-                    <TableCell>{usuario.email}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRolColor(usuario.rol)}`}>
-                        {usuario.rol === 'admin' ? 'Administrador' : usuario.rol === 'editor' ? 'Editor' : 'Visor'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${usuario.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {usuario.activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </TableCell>
-                    <TableCell>{new Date(usuario.createdAt).toLocaleDateString('es-CO')}</TableCell>
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Rol</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {usuarios.map((usuario) => (
+                    <TableRow key={usuario.id}>
+                      <TableCell className="font-medium">{usuario.nombre}</TableCell>
+                      <TableCell>{usuario.email}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRolColor(usuario.rol)}`}>
+                          {getRolLabel(usuario.rol)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${usuario.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {usuario.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </TableCell>
+                      <TableCell>{new Date(usuario.createdAt).toLocaleDateString('es-CO')}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="outline" size="sm" onClick={() => openUsuarioDialog(usuario)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" className="text-red-600" onClick={() => handleDeleteUsuario(usuario.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-      {/* Create User Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {/* ROLES TAB */}
+      {activeTab === 'roles' && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => openRolDialog()}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nuevo Rol
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {roles.map((rol) => (
+              <Card key={rol.id}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{getRolLabel(rol.nombre)}</CardTitle>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openRolDialog(rol)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-red-600"
+                        disabled={rol.usuariosCount > 0}
+                        onClick={() => handleDeleteRol(rol.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-2">{rol.descripcion}</p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Users className="w-4 h-4" />
+                    <span>{rol.usuariosCount} usuario{rol.usuariosCount !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {rol.permisos.slice(0, 5).map((p: any) => (
+                      <span key={p.id} className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                        {p.modulo}_{p.accion}
+                      </span>
+                    ))}
+                    {rol.permisos.length > 5 && (
+                      <span className="text-xs text-muted-foreground">+{rol.permisos.length - 5}</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* USUARIO DIALOG */}
+      <Dialog open={isUsuarioDialogOpen} onOpenChange={setIsUsuarioDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nuevo Usuario</DialogTitle>
+            <DialogTitle>{editingUsuario ? 'Editar Usuario' : 'Nuevo Usuario'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleUsuarioSubmit}>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Nombre Completo</Label>
                 <Input 
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                  value={usuarioForm.nombre}
+                  onChange={(e) => setUsuarioForm({...usuarioForm, nombre: e.target.value})}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label>Email (debe ser @grupoalmo.com)</Label>
+                <Label>Email</Label>
                 <Input 
                   type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  value={usuarioForm.email}
+                  onChange={(e) => setUsuarioForm({...usuarioForm, email: e.target.value})}
                   placeholder="usuario@grupoalmo.com"
                   required
+                  disabled={!!editingUsuario}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Contraseña</Label>
+                <Label>Contraseña {editingUsuario && '(opcional)'}</Label>
                 <Input 
                   type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  required
+                  value={usuarioForm.password}
+                  onChange={(e) => setUsuarioForm({...usuarioForm, password: e.target.value})}
+                  placeholder={editingUsuario ? '••••••••' : 'Contraseña'}
+                  required={!editingUsuario}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Rol</Label>
-                <Select value={formData.rol} onValueChange={(v) => setFormData({...formData, rol: v as any})}>
-                  <SelectTrigger><span>{formData.rol === 'admin' ? 'Administrador' : formData.rol === 'editor' ? 'Editor' : 'Visor'}</span></SelectTrigger>
+                <Select value={usuarioForm.rol} onValueChange={(v) => setUsuarioForm({...usuarioForm, rol: v})}>
+                  <SelectTrigger><span className="capitalize">{getRolLabel(usuarioForm.rol)}</span></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="editor">Editor</SelectItem>
-                    <SelectItem value="viewer">Visor</SelectItem>
+                    {roles.map((r) => (
+                      <SelectItem key={r.nombre} value={r.nombre}>{getRolLabel(r.nombre)}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+              {editingUsuario && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="activo"
+                    checked={usuarioForm.activo}
+                    onChange={(e) => setUsuarioForm({...usuarioForm, activo: e.target.checked})}
+                    className="rounded"
+                  />
+                  <Label htmlFor="activo">Usuario activo</Label>
+                </div>
+              )}
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-              <Button type="submit">Crear Usuario</Button>
+              <Button type="button" variant="outline" onClick={() => setIsUsuarioDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit">{editingUsuario ? 'Actualizar' : 'Crear'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ROL DIALOG */}
+      <Dialog open={isRolDialogOpen} onOpenChange={setIsRolDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingRol ? 'Editar Rol' : 'Nuevo Rol'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleRolSubmit}>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Nombre del Rol</Label>
+                  <Input 
+                    value={rolForm.nombre}
+                    onChange={(e) => setRolForm({...rolForm, nombre: e.target.value.toLowerCase().replace(/\s+/g, '_')})}
+                    placeholder="nombre_rol"
+                    required
+                    disabled={!!editingRol}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Descripción</Label>
+                  <Input 
+                    value={rolForm.descripcion}
+                    onChange={(e) => setRolForm({...rolForm, descripcion: e.target.value})}
+                    placeholder="Descripción del rol"
+                  />
+                </div>
+              </div>
+              
+              {permisos && (
+                <div className="space-y-2">
+                  <Label>Permisos</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-60 overflow-y-auto border p-2 rounded">
+                    {permisos.permisos.map((permiso) => {
+                      const permisoKey = `${permiso.modulo}_${permiso.accion}`
+                      const isSelected = rolForm.permisos.includes(permisoKey)
+                      return (
+                        <div 
+                          key={permiso.id}
+                          className={`flex items-center gap-2 p-2 rounded cursor-pointer ${isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-gray-100'}`}
+                          onClick={() => togglePermiso(permisoKey)}
+                        >
+                          <input 
+                            type="checkbox" 
+                            checked={isSelected}
+                            onChange={() => togglePermiso(permisoKey)}
+                            className="sr-only"
+                          />
+                          <span className="text-sm">{permiso.modulo}_{permiso.accion}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsRolDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit">{editingRol ? 'Actualizar' : 'Crear'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -28,3 +28,10 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     return res.status(401).json({ message: 'Token inválido' })
   }
 }
+
+export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+  if (req.user?.rol !== 'admin') {
+    return res.status(403).json({ message: 'Acceso denegado. Se requiere rol de administrador.' })
+  }
+  next()
+}
