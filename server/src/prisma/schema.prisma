@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Usuario {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  nombre    String
+  rol       String    @default("editor")
+  activo    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Servidor {
+  id              Int      @id @default(autoincrement())
+  pais            String?
+  host            String?
+  nombreVm        String?
+  ip              String?  @unique
+  cpu             Int      @default(0)
+  memoria         String?
+  disco           String?
+  ambiente        String   @default("Produccion")
+  arquitectura    String   @default("x86_64")
+  sistemaOperativo String?
+  versionOs       String?
+  antivirus       String?
+  estado          String   @default("Activo")
+  responsable     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model InventarioFisico {
+  id              Int      @id @default(autoincrement())
+  pais            String?
+  equipo          String?
+  responsable     String?
+  direccionIp     String?
+  ilo             String?
+  categoria       String?
+  descripcion     String?
+  marca           String?
+  modelo          String?
+  serial          String?
+  sistemaOperativo String?
+  garantia        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model EmailConfig {
+  id           Int      @id @default(autoincrement())
+  host         String
+  puerto       Int      @default(587)
+  usuario      String
+  contrasena   String
+  usandoTls    Boolean  @default(true)
+  emailFrom    String
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  nombre    String
+  rol       String   @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Servidor {
+  id               Int     @id @default(autoincrement())
+  pais             String
+  host             String
+  nombreVM         String?
+  ip               String?
+  cpu              Int?
+  memoria          String?
+  disco            String?
+  ambiente         String
+  arquitectura     String?
+  sistemaOperativo String?
+  version          String?
+  antivirus        String?
+  estado           String
+  responsable      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model InventarioFisico {
+  id             Int      @id @default(autoincrement())
+  pais           String
+  categoria      String
+  marca          String
+  modelo         String?
+  serie          String?
+  inventario     String?
+  estado         String
+  responsable    String?
+  observaciones  String?
+  equipo         String?
+  direccionIp    String?
+  ilo            String?
+  descripcion    String?
+  serial         String?
+  sistemaOperativo String?
+  garantia       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Configuracion {
+  id        Int      @id @default(autoincrement())
+  clave     String   @unique
+  valor     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EmailConfig {
+  id          Int      @id @default(autoincrement())
+  host        String
+  puerto      Int      @default(587)
+  usuario     String
+  contrasena  String
+  usandoTls   Boolean  @default(true)
+  emailFrom   String
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
