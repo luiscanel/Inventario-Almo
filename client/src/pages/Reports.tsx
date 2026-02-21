@@ -25,7 +25,6 @@ export default function Reports() {
   const loadServidores = async () => {
     try {
       const data = await getServidores()
-      console.log('Servidores loaded:', data?.length, 'uniqueAmbientes:', [...new Set((data || []).map((s: Servidor) => s.ambiente).filter(Boolean))])
       setServidores(data)
     } catch (error) {
       console.error('Error:', error)
@@ -34,24 +33,22 @@ export default function Reports() {
 
   const getFilteredData = () => {
     const data = servidores || []
-    const filtered = data
     switch (reportType) {
       case 'ambiente':
-        if (!filterValue) return filtered
-        console.log('Filtering by ambiente:', filterValue, 'sample:', data.slice(0,3).map((s: Servidor) => s.ambiente))
-        return data.filter((s: Servidor) => (s.ambiente || '').toString().toLowerCase() === filterValue.toLowerCase())
+        if (!filterValue) return data
+        return data.filter((s: Servidor) => (s.ambiente || '').toLowerCase().trim() === filterValue.toLowerCase().trim())
       case 'pais':
-        if (!filterValue) return filtered
-        return data.filter((s: Servidor) => (s.pais || '').toString().toLowerCase() === filterValue.toLowerCase())
+        if (!filterValue) return data
+        return data.filter((s: Servidor) => (s.pais || '').toLowerCase().trim() === filterValue.toLowerCase().trim())
       case 'sin-antivirus':
-        return data.filter((s: Servidor) => !s.antivirus || (s.antivirus || '').trim() === '')
+        return data.filter((s: Servidor) => !s.antivirus || (s.antivirus || '').trim() === '' || s.antivirus.toLowerCase() === 'ninguno')
       case 'produccion':
-        return data.filter((s: Servidor) => (s.ambiente || '').toString().toLowerCase() === 'produccion')
+        return data.filter((s: Servidor) => (s.ambiente || '').toLowerCase().trim() === 'produccion')
       case 'estado':
-        if (!filterValue) return filtered
-        return data.filter((s: Servidor) => (s.estado || '').toString().toLowerCase() === filterValue.toLowerCase())
+        if (!filterValue) return data
+        return data.filter((s: Servidor) => (s.estado || '').toLowerCase().trim() === filterValue.toLowerCase().trim())
       default:
-        return filtered
+        return data
     }
   }
 

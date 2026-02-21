@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../prisma/index'
 import nodemailer from 'nodemailer'
 import * as XLSX from 'xlsx'
-
-const prisma = new PrismaClient()
 
 // Utilidad para parsear números
 function parseToNumber(value: any): number {

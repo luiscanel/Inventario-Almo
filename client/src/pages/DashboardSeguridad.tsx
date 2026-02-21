@@ -40,9 +40,9 @@ interface SecurityStats {
     ambiente: string
     estado: string
   }[]
-  porArquitectura: { arquitectura: string; count: number }[]
-  porSOVersion: { soVersion: string; count: number }[]
-  porSO: { sistemaOperativo: string; count: number }[]
+  porArquitectura: { name: string; count: number }[]
+  porSO: { name: string; count: number }[]
+  porPaisYSistema?: { pais: string; sistemas: { name: string; count: number }[] }[]
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -282,10 +282,10 @@ export default function DashboardSeguridad() {
           <CardContent>
             <div className="h-72 overflow-y-auto">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.porSOVersion?.slice(0, 12) || []} layout="vertical">
+                <BarChart data={stats?.porSO?.slice(0, 12) || []} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
                   <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="soVersion" type="category" width={180} tick={{ fontSize: 9 }} />
+                  <YAxis dataKey="name" type="category" width={180} tick={{ fontSize: 9 }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="count" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
                 </BarChart>

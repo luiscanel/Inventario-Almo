@@ -1,6 +1,4 @@
-import { PrismaClient, Servidor, InventarioFisico } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '../prisma/index'
 
 // Tipos para estadísticas
 interface CountByKey {
@@ -322,7 +320,7 @@ export async function getPhysicalStats() {
   })
 
   // Cobertura de IP
-  const conIP = equipos.filter(e => e.ip && e.ip.trim()).length
+  const conIP = equipos.filter(e => (e as any).direccionIp && (e as any).direccionIp.trim()).length
   const sinIP = equipos.length - conIP
 
   return {

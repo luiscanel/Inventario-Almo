@@ -1,10 +1,9 @@
 import { Router } from 'express'
-import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { prisma } from '../prisma/index'
 
 const router = Router()
-const prisma = new PrismaClient()
 const JWT_SECRET = process.env.JWT_SECRET || 'inventario-almo-secret-key-2024'
 
 router.post('/login', async (req, res) => {

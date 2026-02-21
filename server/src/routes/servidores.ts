@@ -1,9 +1,8 @@
 import { Router } from 'express'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../prisma/index'
 import { authMiddleware } from '../middleware/auth'
 
 const router = Router()
-const prisma = new PrismaClient()
 
 router.use(authMiddleware)
 
@@ -90,20 +89,21 @@ router.post('/import', async (req, res) => {
 
     const dataToInsert = servidores.map(s => {
       const str = (v: any) => v === null || v === undefined ? null : String(v).trim() || null
+      const server = s as any
       
       // Handle case variations for nombreVM and version
-      const nombreVM = s.nombreVM || s.nombreVm || s.nombrevm || null
-      const version = s.version || s.versionOs || s.versionos || null
+      const nombreVM = server.nombreVM || server.nombreVm || server.nombrevm || null
+      const version = server.version || server.versionOs || server.versionos || null
 
       return {
-        pais: str(s.pais) || 'Colombia',
-        host: str(s.host) || '',
+        pais: str(server.pais) || 'Colombia',
+        host: str(server.host) || '',
         nombreVM: str(nombreVM),
-        ip: str(s.ip),
-        cpu: parseInt(String(s.cpu)) || 0,
-        memoria: str(s.memoria),
-        disco: str(s.disco),
-        ambiente: str(s.ambiente) || 'Produccion',
+        ip: str(server.ip),
+        cpu: parseInt(String(server.cpu)) || 0,
+        memoria: str(server.memoria),
+        disco: str(server.disco),
+        ambiente: str(server.ambiente) || 'Produccion',
         arquitectura: str(s.arquitectura) || 'x86_64',
         sistemaOperativo: str(s.sistemaOperativo),
         version: str(version),

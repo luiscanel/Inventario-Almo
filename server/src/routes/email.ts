@@ -1,8 +1,8 @@
 import { Router } from 'express'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../prisma/index'
 import { authMiddleware } from '../middleware/auth'
 import { 
-  getEmailConfig, 
+  getEmailConfig,
   sendReportByEmail,
   generateVMReport,
   generatePhysicalReport,
@@ -10,7 +10,6 @@ import {
 } from '../services/reportsService'
 
 const router = Router()
-const prisma = new PrismaClient()
 
 router.use(authMiddleware)
 

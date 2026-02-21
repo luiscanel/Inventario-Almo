@@ -1,10 +1,9 @@
 import { Router } from 'express'
-import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { prisma } from '../prisma/index'
 import { authMiddleware } from '../middleware/auth'
 
 const router = Router()
-const prisma = new PrismaClient()
 
 router.use(authMiddleware)
 

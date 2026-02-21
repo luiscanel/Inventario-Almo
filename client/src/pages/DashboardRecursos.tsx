@@ -32,9 +32,9 @@ interface ResourceStats {
   porMemoriaRango: { range: string; count: number }[]
   porAmbiente: { ambiente: string; cpu: number; memoria: number; disco: number; count: number }[]
   porPais: { pais: string; cpu: number; memoria: number; disco: number; count: number }[]
-  topCpu: { id: number; host: string; nombreVM: string | null; cpu: number; pais: string; ambiente: string }[]
-  topMemoria: { host: string; nombreVM: string | null; memoria: number; pais: string; ambiente: string }[]
-  topDisco: { host: string; nombreVM: string | null; disco: number; pais: string; ambiente: string }[]
+  topCpu: any[]
+  topMemoria: any[]
+  topDisco: any[]
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {

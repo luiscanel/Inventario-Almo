@@ -1,16 +1,20 @@
 import { useAuthStore } from '@/store/authStore'
+import type { Servidor, Usuario, InventarioFisico, SecurityStats, ResourcesStats, EmailConfig, ImportResult } from '@/types/api'
 
 const API_URL = '/api'
 
-function getHeaders() {
-  // Try both localStorage key and Zustand store
-  let token = localStorage.getItem('token')
-  if (!token) {
-    const state = useAuthStore.getState()
-    token = state.token
-  }
-  
-  const headers: Record<string, string> = {
+// ============================================
+// Utility Functions
+// ============================================
+
+function getToken(): string | null {
+  // Try localStorage first, then Zustand store
+  return localStorage.getItem('token') || useAuthStore.getState().token || null
+}
+
+function getHeaders(): HeadersInit {
+  const token = getToken()
+  const headers: HeadersInit = {
     'Content-Type': 'application/json',
   }
   
@@ -21,256 +25,244 @@ function getHeaders() {
   return headers
 }
 
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Error de red' }))
+    throw new Error(error.message || `Error ${response.status}`)
+  }
+  return response.json()
+}
+
+// ============================================
+// Authentication
+// ============================================
+
 export async function login(email: string, password: string) {
   const res = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   })
+  
   if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.message || 'Error de autenticación')
+    const error = await res.json().catch(() => ({ message: 'Error de autenticación' }))
+    throw new Error(error.message)
   }
+  
   const data = await res.json()
   localStorage.setItem('token', data.token)
   return data
 }
 
-export async function getServidores() {
+// ============================================
+// Servidores
+// ============================================
+
+export async function getServidores(): Promise<Servidor[]> {
   const res = await fetch(`${API_URL}/servidores`, {
-    headers: getHeaders()
+    headers: getHeaders(),
   })
-  if (!res.ok) throw new Error('Error al obtener servidores')
-  return res.json()
+  return handleResponse<Servidor[]>(res)
 }
 
-export async function createServidor(data: any) {
+export async function createServidor(data: Partial<Servidor>): Promise<Servidor> {
   const res = await fetch(`${API_URL}/servidores`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(data),
   })
-  if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.message || 'Error al crear servidor')
-  }
-  return res.json()
+  return handleResponse<Servidor>(res)
 }
 
-export async function updateServidor(id: number, data: any) {
+export async function updateServidor(id: number, data: Partial<Servidor>): Promise<Servidor> {
   const res = await fetch(`${API_URL}/servidores/${id}`, {
     method: 'PUT',
     headers: getHeaders(),
     body: JSON.stringify(data),
   })
-  if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.message || 'Error al actualizar servidor')
-  }
-  return res.json()
+  return handleResponse<Servidor>(res)
 }
 
-export async function deleteServidor(id: number) {
+export async function deleteServidor(id: number): Promise<void> {
   const res = await fetch(`${API_URL}/servidores/${id}`, {
     method: 'DELETE',
     headers: getHeaders(),
   })
+  
   if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.message || 'Error al eliminar servidor')
+    throw new Error('Error al eliminar servidor')
   }
-  return res.json()
 }
 
-export async function importServidores(servidores: any[]) {
+export async function importServidores(servidores: Partial<Servidor>[]): Promise<ImportResult> {
   const res = await fetch(`${API_URL}/servidores/import`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify({ servidores }),
   })
-  if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.message || 'Error al importar servidores')
-  }
-  return res.json()
+  return handleResponse<ImportResult>(res)
 }
 
-export async function getDashboardStats() {
-  const res = await fetch(`${API_URL}/dashboard/stats`, {
-    headers: getHeaders()
-  })
-  if (!res.ok) throw new Error('Error al obtener estadísticas')
-  return res.json()
-}
-
-export async function getDashboardSecurity() {
-  const res = await fetch(`${API_URL}/dashboard/security`, {
-    headers: getHeaders()
-  })
-  if (!res.ok) throw new Error('Error al obtener estadísticas de seguridad')
-  return res.json()
-}
-
-export async function getDashboardResources() {
-  const res = await fetch(`${API_URL}/dashboard/resources`, {
-    headers: getHeaders()
-  })
-  if (!res.ok) throw new Error('Error al obtener estadísticas de recursos')
-  return res.json()
-}
-
-export async function getDashboardAvailability() {
-  const res = await fetch(`${API_URL}/dashboard/availability`, {
-    headers: getHeaders()
-  })
-  if (!res.ok) throw new Error('Error al obtener estadísticas de disponibilidad')
-  return res.json()
-}
-
-export async function getDashboardPhysical() {
-  const res = await fetch(`${API_URL}/dashboard/physical`, {
-    headers: getHeaders()
-  })
-  if (!res.ok) throw new Error('Error al obtener estadísticas de inventario físico')
-  return res.json()
-}
-
-export async function getDashboardResponsables() {
-  const res = await fetch(`${API_URL}/dashboard/responsables`, {
-    headers: getHeaders()
-  })
-  if (!res.ok) throw new Error('Error al obtener estadísticas de responsables')
-  return res.json()
-}
-
-export async function getUsuarios() {
-  const res = await fetch(`${API_URL}/admin/usuarios`, {
-    headers: getHeaders()
-  })
-  if (!res.ok) throw new Error('Error al obtener usuarios')
-  return res.json()
-}
-
-export async function createUsuario(data: any) {
-  const res = await fetch(`${API_URL}/admin/usuarios`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.message || 'Error al crear usuario')
-  }
-  return res.json()
-}
-
-export async function exportToExcel(data: any[], filename: string) {
-  const res = await fetch(`${API_URL}/export/excel`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({ data, filename }),
-  })
-  if (!res.ok) throw new Error('Error al exportar')
-  const blob = await res.blob()
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${filename}.xlsx`
-  a.click()
-}
-
-export async function getEmailConfig() {
-  const res = await fetch(`${API_URL}/email/config`, {
-    headers: getHeaders()
-  })
-  if (!res.ok) throw new Error('Error al obtener configuración')
-  return res.json()
-}
-
-export async function saveEmailConfig(data: any) {
-  const res = await fetch(`${API_URL}/email/config`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) throw new Error('Error al guardar configuración')
-  return res.json()
-}
-
-export async function testEmail(email: string) {
-  const res = await fetch(`${API_URL}/email/test`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({ email }),
-  })
-  return res.json()
-}
-
-export async function sendReport(email: string) {
-  const res = await fetch(`${API_URL}/email/send-report`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({ email }),
-  })
-  return res.json()
-}
-
+// ============================================
 // Inventario Físico
-export async function getInventarioFisico() {
+// ============================================
+
+export async function getInventarioFisico(): Promise<InventarioFisico[]> {
   const res = await fetch(`${API_URL}/inventario-fisico`, {
-    headers: getHeaders()
+    headers: getHeaders(),
   })
-  if (!res.ok) throw new Error('Error al obtener inventario físico')
-  return res.json()
+  return handleResponse<InventarioFisico[]>(res)
 }
 
-export async function createInventarioFisico(data: any) {
+export async function createInventarioFisico(data: Partial<InventarioFisico>): Promise<InventarioFisico> {
   const res = await fetch(`${API_URL}/inventario-fisico`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(data),
   })
-  if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.message || 'Error al crear item')
-  }
-  return res.json()
+  return handleResponse<InventarioFisico>(res)
 }
 
-export async function updateInventarioFisico(id: number, data: any) {
+export async function updateInventarioFisico(id: number, data: Partial<InventarioFisico>): Promise<InventarioFisico> {
   const res = await fetch(`${API_URL}/inventario-fisico/${id}`, {
     method: 'PUT',
     headers: getHeaders(),
     body: JSON.stringify(data),
   })
-  if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.message || 'Error al actualizar item')
-  }
-  return res.json()
+  return handleResponse<InventarioFisico>(res)
 }
 
-export async function deleteInventarioFisico(id: number) {
+export async function deleteInventarioFisico(id: number): Promise<void> {
   const res = await fetch(`${API_URL}/inventario-fisico/${id}`, {
     method: 'DELETE',
     headers: getHeaders(),
   })
+  
   if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.message || 'Error al eliminar item')
+    throw new Error('Error al eliminar item')
   }
-  return res.json()
 }
 
-export async function importInventarioFisico(items: any[]) {
+export async function importInventarioFisico(items: Partial<InventarioFisico>[]): Promise<ImportResult> {
   const res = await fetch(`${API_URL}/inventario-fisico/import`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify({ items }),
   })
+  return handleResponse<ImportResult>(res)
+}
+
+// ============================================
+// Dashboard
+// ============================================
+
+export async function getDashboardStats() {
+  const res = await fetch(`${API_URL}/dashboard/stats`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<any>(res)
+}
+
+export async function getDashboardSecurity(): Promise<SecurityStats> {
+  const res = await fetch(`${API_URL}/dashboard/security`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<SecurityStats>(res)
+}
+
+export async function getDashboardResources(): Promise<ResourcesStats> {
+  const res = await fetch(`${API_URL}/dashboard/resources`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<ResourcesStats>(res)
+}
+
+export async function getDashboardAvailability() {
+  const res = await fetch(`${API_URL}/dashboard/availability`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<any>(res)
+}
+
+export async function getDashboardPhysical() {
+  const res = await fetch(`${API_URL}/dashboard/physical`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<any>(res)
+}
+
+export async function getDashboardResponsables() {
+  const res = await fetch(`${API_URL}/dashboard/responsables`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<any>(res)
+}
+
+// ============================================
+// Admin
+// ============================================
+
+export async function getUsuarios(): Promise<Usuario[]> {
+  const res = await fetch(`${API_URL}/admin/usuarios`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<Usuario[]>(res)
+}
+
+export async function createUsuario(data: { email: string; nombre: string; password: string; rol: string }): Promise<Usuario> {
+  const res = await fetch(`${API_URL}/admin/usuarios`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse<Usuario>(res)
+}
+
+export async function deleteAllServidores(): Promise<void> {
+  const res = await fetch(`${API_URL}/admin/servidores`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  })
+  
   if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.message || 'Error al importar')
+    throw new Error('Error al eliminar servidores')
   }
-  return res.json()
+}
+
+// ============================================
+// Email
+// ============================================
+
+export async function getEmailConfig(): Promise<EmailConfig | null> {
+  const res = await fetch(`${API_URL}/email/config`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<EmailConfig | null>(res)
+}
+
+export async function saveEmailConfig(data: EmailConfig): Promise<EmailConfig> {
+  const res = await fetch(`${API_URL}/email/config`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse<EmailConfig>(res)
+}
+
+export async function testEmail(email: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_URL}/email/test`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ email }),
+  })
+  return handleResponse<{ success: boolean; message: string }>(res)
+}
+
+export async function sendReport(email: string, tipo: string, filtro: string, tipoReporte: string, titulo: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_URL}/email/send-report`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ email, tipo, filtro, tipoReporte, titulo }),
+  })
+  return handleResponse<{ success: boolean; message: string }>(res)
 }
