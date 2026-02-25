@@ -1,9 +1,10 @@
 ================================================================================
-                  INSTALACION - INVENTARIO ALMO (SIN DOCKER)
+            INSTALACION - INVENTARIO ALMO (SIN DOCKER) v2
 ================================================================================
 
 Este documento describe cómo instalar la aplicación Inventario Almo en un 
 servidor Linux dedicado sin usar Docker.
+
 
 REQUISITOS DEL SISTEMA
 ================================================================================
@@ -14,6 +15,94 @@ Nginx:            1.18+ (se instala automáticamente)
 SQLite:           3.x (se instala automáticamente)
 RAM:              2 GB
 Disco:            10 GB
+
+
+ERRORES COMUNES Y SOLUCIONES
+================================================================================
+
+1) tsc: not found
+------------------
+Sintoma: El build del backend falla.
+Solucion:
+  npm install -g typescript
+  npm run build
+
+
+2) pm2: command not found
+--------------------------
+Sintoma: No se puede ejecutar pm2.
+Solucion:
+  npm install -g pm2
+
+
+3) Prisma 7 – P1012
+--------------------
+Sintoma: Error de validacion Prisma.
+Causa: Version de Prisma incompatible.
+Solucion:
+  cd /opt/inventario-almo/server
+  npm install @prisma/client@5.22.0 prisma@5.22.0 --save
+  npx prisma generate
+  npx prisma db push
+
+
+4) Backend no conecta a la base de datos
+-----------------------------------------
+Sintoma: Prisma no puede abrir la base de datos.
+Causa: Ruta incorrecta en DATABASE_URL.
+Solucion: Asegurar que .env tenga:
+  DATABASE_URL="file:/var/lib/inventario-almo/prisma/dev.db"
+
+
+5) PM2 no inicia el backend
+----------------------------
+Sintoma: Proceso "online" pero no responde en puerto 3001.
+Causa: Variables de entorno no cargadas.
+Solucion: Usar ecosystem.config.js con env embebido:
+  env: {
+    PORT: '3001',
+    DATABASE_URL: 'file:/...',
+    ...
+  }
+
+
+6) Nginx 404 en /api/health
+----------------------------
+Sintoma: curl localhost/api/health devuelve 404.
+Causa: proxy_pass tiene "/" final que borra /api.
+Solucion: Quitar el "/" final:
+  proxy_pass http://127.0.0.1:3001;  (sin / al final)
+
+
+7) Login siempre falla
+-----------------------
+Sintoma: "Error de autenticación" siempre.
+Causa: Base de datos sin usuarios.
+Solucion: Ejecutar seed:
+  cd /opt/inventario-almo/server
+  node -e "
+  const { PrismaClient } = require('@prisma/client');
+  const bcrypt = require('bcryptjs');
+  const prisma = new PrismaClient();
+  (async () => {
+    const hashed = await bcrypt.hash('admin123', 10);
+    await prisma.user.create({
+      data: { email: 'admin@grupoalmo.com', nombre: 'Admin', password: hashed, rol: 'admin' }
+    });
+    console.log('Usuario creado');
+    await prisma.\$disconnect();
+  })();
+  "
+
+
+8) Frontend no conecta al backend
+----------------------------------
+Sintoma: Login funciona en curl pero no en navegador.
+Causa: VITE_API_URL incorrecto.
+Solucion:
+  cd /opt/inventario-almo/client
+  echo "VITE_API_URL=http://TU_IP" > .env
+  npm run build
 
 
 PASOS DE INSTALACION
@@ -53,7 +142,7 @@ curl http://localhost/api/health
 # Probar login
 curl -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"jorge.canel@grupoalmo.com","password":"Admin123"}'
+  -d '{"email":"admin@grupoalmo.com","password":"admin123"}'
 
 
 COMANDOS DE GESTION
@@ -63,10 +152,11 @@ COMANDOS DE GESTION
 |------------------------|-------------------------------------|
 | Ver estado             | pm2 status                          |
 | Reiniciar              | pm2 restart inventario-backend      |
-| Ver logs               | pm2 logs inventario-backend         |
-| Detener                | pm2 stop inventario-backend         |
+| Ver logs              | pm2 logs inventario-backend         |
+| Detener               | pm2 stop inventario-backend         |
 | Iniciar               | pm2 start inventario-backend        |
 | Logs tiempo real       | pm2 logs inventario-backend --follow|
+| Ver errores           | pm2 logs inventario-backend --err   |
 
 
 ESTRUCTURA DE ARCHIVOS
@@ -75,85 +165,28 @@ ESTRUCTURA DE ARCHIVOS
 /opt/inventario-almo/
   client/
     dist/           <- Build de producción
+    .env            <- VITE_API_URL
   server/
     dist/           <- Build compilado
     .env            <- Variables de entorno
+    prisma/
+      schema.prisma <- Schema de BD
   ecosystem.config.js <- Config PM2
 
 /var/lib/inventario-almo/
   prisma/
     dev.db          <- Base de datos SQLite
 
-
-SOLUCION DE PROBLEMAS
-================================================================================
-
-ERROR: tsc not found
----------------------
-npm install -g typescript
-
-
-ERROR: pm2 not found
---------------------
-npm install -g pm2
-
-
-ERROR: Prisma no funciona
--------------------------
-cd /opt/inventario-almo/server
-npm install @prisma/client@5.22.0 prisma@5.22.0 --save
-npx prisma generate
-npx prisma db push
-
-
-ERROR: No puedo hacer login
----------------------------
-# Verificar que la base de datos tenga usuarios
-cd /opt/inventario-almo/server
-node -e "
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-prisma.user.findMany().then(console.log).finally(() => prisma.\$disconnect());
-"
-
-# Si está vacía, crear admin
-node -e "
-const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
-const prisma = new PrismaClient();
-
-(async () => {
-  const hashedPassword = await bcrypt.hash('Admin123', 10);
-  const user = await prisma.user.upsert({
-    where: { email: 'jorge.canel@grupoalmo.com' },
-    update: {},
-    create: {
-      email: 'jorge.canel@grupoalmo.com',
-      password: hashedPassword,
-      nombre: 'Jorge Canel',
-      rol: 'admin'
-    }
-  });
-  console.log('Usuario creado:', user.email);
-  await prisma.\$disconnect();
-})();
-"
-
-
-ERROR: Backend no inicia
-------------------------
-# Ver logs detallados
-pm2 logs inventario-backend --err --lines 50
-
-# Verificar variables de entorno
-pm2 describe inventario-backend
+/var/log/inventario-almo/
+  backend-error.log
+  backend-out.log
 
 
 CREDENCIALES POR DEFECTO
 ================================================================================
 
-Email:    jorge.canel@grupoalmo.com
-Password: Admin123
+Email:    admin@grupoalmo.com
+Password: admin123
 
 
 ACCESO
