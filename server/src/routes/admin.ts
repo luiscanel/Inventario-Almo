@@ -2,6 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../prisma/index'
 import { authMiddleware, requireAdmin } from '../middleware/auth'
+import { validate, createUserSchema, updateUserSchema, createRolSchema, updateRolSchema } from '../validations/index.js'
 
 const router = Router()
 
@@ -22,13 +23,20 @@ router.get('/roles', async (req, res) => {
       },
       orderBy: { nombre: 'asc' }
     })
-    res.json(roles.map(r => ({
-      ...r,
-      usuariosCount: r.usuarios.length
-    })))
+    res.json({ 
+      success: true, 
+      data: roles.map(r => ({
+        ...r,
+        usuariosCount: r.usuarios.length
+      }))
+    })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al obtener roles' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al obtener roles',
+      code: 'FETCH_ERROR'
+    })
   }
 })
 
@@ -39,36 +47,37 @@ router.get('/permisos', async (req, res) => {
       orderBy: [{ modulo: 'asc' }, { accion: 'asc' }]
     })
     
-    // Agrupar por módulo
     const grouped: Record<string, string[]> = {}
     permisos.forEach(p => {
       if (!grouped[p.modulo]) grouped[p.modulo] = []
       grouped[p.modulo].push(p.accion)
     })
     
-    res.json({ permisos, grouped })
+    res.json({ success: true, data: { permisos, grouped } })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al obtener permisos' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al obtener permisos',
+      code: 'FETCH_ERROR'
+    })
   }
 })
 
 // Create rol
-router.post('/roles', async (req, res) => {
+router.post('/roles', validate(createRolSchema), async (req, res) => {
   try {
     const { nombre, descripcion, permisos } = req.body
 
-    if (!nombre) {
-      return res.status(400).json({ message: 'El nombre del rol es requerido' })
-    }
-
-    // Verificar si existe
     const existing = await prisma.rol.findUnique({ where: { nombre } })
     if (existing) {
-      return res.status(400).json({ message: 'Ya existe un rol con ese nombre' })
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Ya existe un rol con ese nombre',
+        code: 'DUPLICATE_ROLE'
+      })
     }
 
-    // Buscar permisos usando OR
     const permisosConditions = permisos?.map((p: string) => {
       const [modulo, accion] = p.split('_')
       return { modulo, accion }
@@ -89,15 +98,19 @@ router.post('/roles', async (req, res) => {
       include: { permisos: true }
     })
 
-    res.json(rol)
+    res.status(201).json({ success: true, data: rol })
   } catch (error: any) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al crear rol' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al crear rol',
+      code: 'CREATE_ERROR'
+    })
   }
 })
 
 // Update rol
-router.put('/roles/:id', async (req, res) => {
+router.put('/roles/:id', validate(updateRolSchema), async (req, res) => {
   try {
     const { id } = req.params
     const { nombre, descripcion, permisos } = req.body
@@ -108,10 +121,13 @@ router.put('/roles/:id', async (req, res) => {
     })
 
     if (!rolActual) {
-      return res.status(404).json({ message: 'Rol no encontrado' })
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Rol no encontrado',
+        code: 'NOT_FOUND'
+      })
     }
 
-    // Buscar permisos usando OR
     let permisosData: any[] = []
     if (permisos?.length) {
       const permisosConditions = permisos.map((p: string) => {
@@ -123,7 +139,6 @@ router.put('/roles/:id', async (req, res) => {
       })
     }
 
-    // Actualizar
     const rol = await prisma.rol.update({
       where: { id: parseInt(id) },
       data: {
@@ -136,10 +151,14 @@ router.put('/roles/:id', async (req, res) => {
       include: { permisos: true }
     })
 
-    res.json(rol)
+    res.json({ success: true, data: rol })
   } catch (error: any) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al actualizar rol' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al actualizar rol',
+      code: 'UPDATE_ERROR'
+    })
   }
 })
 
@@ -148,20 +167,27 @@ router.delete('/roles/:id', async (req, res) => {
   try {
     const { id } = req.params
     
-    // Verificar si hay usuarios con este rol
     const usuariosConRol = await prisma.usuarioRol.count({
       where: { rolId: parseInt(id) }
     })
 
     if (usuariosConRol > 0) {
-      return res.status(400).json({ message: 'No se puede eliminar un rol que tiene usuarios asignados' })
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No se puede eliminar un rol que tiene usuarios asignados',
+        code: 'ROLE_IN_USE'
+      })
     }
 
     await prisma.rol.delete({ where: { id: parseInt(id) } })
-    res.json({ message: 'Rol eliminado correctamente' })
+    res.json({ success: true, message: 'Rol eliminado correctamente' })
   } catch (error: any) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al eliminar rol' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al eliminar rol',
+      code: 'DELETE_ERROR'
+    })
   }
 })
 
@@ -181,37 +207,35 @@ router.get('/usuarios', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     })
     
-    res.json(usuarios.map(u => ({
-      id: u.id,
-      email: u.email,
-      nombre: u.nombre,
-      rol: u.rol,
-      activo: u.activo,
-      createdAt: u.createdAt,
-      roles: u.usuarioRoles.map(ur => ur.rol.nombre)
-    })))
+    res.json({ 
+      success: true, 
+      data: usuarios.map(u => ({
+        id: u.id,
+        email: u.email,
+        nombre: u.nombre,
+        rol: u.rol,
+        activo: u.activo,
+        createdAt: u.createdAt,
+        roles: u.usuarioRoles.map(ur => ur.rol.nombre)
+      }))
+    })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al obtener usuarios' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al obtener usuarios',
+      code: 'FETCH_ERROR'
+    })
   }
 })
 
 // Create usuario
-router.post('/usuarios', async (req, res) => {
+router.post('/usuarios', validate(createUserSchema), async (req, res) => {
   try {
     const { email, nombre, password, rol, activo } = req.body
 
-    if (!email || !nombre || !password) {
-      return res.status(400).json({ message: 'Todos los campos son requeridos' })
-    }
+    const hashedPassword = await bcrypt.hash(password, 12) // Más iteraciones = más seguro
 
-    if (!email.toLowerCase().endsWith('@grupoalmo.com')) {
-      return res.status(400).json({ message: 'Solo se permiten correos con dominio @grupoalmo.com' })
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10)
-
-    // Buscar el rol
     const rolEncontrado = await prisma.rol.findUnique({
       where: { nombre: rol || 'soporte' }
     })
@@ -229,25 +253,36 @@ router.post('/usuarios', async (req, res) => {
       }
     })
 
-    res.json({
-      id: usuario.id,
-      email: usuario.email,
-      nombre: usuario.nombre,
-      rol: usuario.rol,
-      activo: usuario.activo,
-      createdAt: usuario.createdAt
+    res.status(201).json({
+      success: true,
+      data: {
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.nombre,
+        rol: usuario.rol,
+        activo: usuario.activo,
+        createdAt: usuario.createdAt
+      }
     })
   } catch (error: any) {
     if (error.code === 'P2002') {
-      return res.status(400).json({ message: 'El email ya está registrado' })
+      return res.status(400).json({ 
+        success: false, 
+        message: 'El email ya está registrado',
+        code: 'DUPLICATE_EMAIL'
+      })
     }
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al crear usuario' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al crear usuario',
+      code: 'CREATE_ERROR'
+    })
   }
 })
 
 // Update usuario
-router.put('/usuarios/:id', async (req, res) => {
+router.put('/usuarios/:id', validate(updateUserSchema), async (req, res) => {
   try {
     const { id } = req.params
     const { nombre, rol, activo, password } = req.body
@@ -257,22 +292,23 @@ router.put('/usuarios/:id', async (req, res) => {
     })
 
     if (!usuarioActual) {
-      return res.status(404).json({ message: 'Usuario no encontrado' })
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Usuario no encontrado',
+        code: 'NOT_FOUND'
+      })
     }
 
     const updateData: any = {}
     if (nombre) updateData.nombre = nombre
     if (typeof activo === 'boolean') updateData.activo = activo
     if (rol) updateData.rol = rol
-    if (password) updateData.password = await bcrypt.hash(password, 10)
+    if (password) updateData.password = await bcrypt.hash(password, 12)
 
-    // Actualizar rol en tabla relacional si se proporcionó
     if (rol) {
       const rolEncontrado = await prisma.rol.findUnique({ where: { nombre: rol } })
       if (rolEncontrado) {
-        // Eliminar roles anteriores
         await prisma.usuarioRol.deleteMany({ where: { usuarioId: parseInt(id) } })
-        // Crear nuevo rol
         await prisma.usuarioRol.create({
           data: { usuarioId: parseInt(id), rolId: rolEncontrado.id }
         })
@@ -285,16 +321,23 @@ router.put('/usuarios/:id', async (req, res) => {
     })
 
     res.json({
-      id: usuario.id,
-      email: usuario.email,
-      nombre: usuario.nombre,
-      rol: usuario.rol,
-      activo: usuario.activo,
-      createdAt: usuario.createdAt
+      success: true,
+      data: {
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.nombre,
+        rol: usuario.rol,
+        activo: usuario.activo,
+        createdAt: usuario.createdAt
+      }
     })
   } catch (error: any) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al actualizar usuario' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al actualizar usuario',
+      code: 'UPDATE_ERROR'
+    })
   }
 })
 
@@ -303,17 +346,24 @@ router.delete('/usuarios/:id', async (req, res) => {
   try {
     const { id } = req.params
     
-    // No permitir eliminarse a sí mismo
     const userId = (req as any).user?.id
     if (userId === parseInt(id)) {
-      return res.status(400).json({ message: 'No puedes eliminarte a ti mismo' })
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No puedes eliminarte a ti mismo',
+        code: 'SELF_DELETE'
+      })
     }
 
     await prisma.user.delete({ where: { id: parseInt(id) } })
-    res.json({ message: 'Usuario eliminado correctamente' })
+    res.json({ success: true, message: 'Usuario eliminado correctamente' })
   } catch (error: any) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al eliminar usuario' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al eliminar usuario',
+      code: 'DELETE_ERROR'
+    })
   }
 })
 
@@ -325,10 +375,14 @@ router.delete('/usuarios/:id', async (req, res) => {
 router.delete('/servidores', async (req, res) => {
   try {
     await prisma.servidor.deleteMany({})
-    res.json({ message: 'Todos los servidores eliminados' })
+    res.json({ success: true, message: 'Todos los servidores eliminados' })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al eliminar servidores' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al eliminar servidores',
+      code: 'DELETE_ERROR'
+    })
   }
 })
 

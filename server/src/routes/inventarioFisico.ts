@@ -1,107 +1,114 @@
 import { Router } from 'express'
 import { prisma } from '../prisma/index'
 import { authMiddleware } from '../middleware/auth'
+import { validate, inventarioFisicoSchema, inventarioFisicoUpdateSchema, inventarioFisicoImportSchema, bulkDeleteSchema } from '../validations/index.js'
 
 const router = Router()
 
 router.use(authMiddleware)
 
+// Obtener todos los items
 router.get('/', async (req, res) => {
   try {
     const items = await prisma.inventarioFisico.findMany({
       orderBy: { id: 'desc' }
     })
-    res.json(items)
+    res.json({ success: true, data: items })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al obtener inventario físico' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al obtener inventario físico',
+      code: 'FETCH_ERROR'
+    })
   }
 })
 
-router.post('/', async (req, res) => {
+// Crear item
+router.post('/', validate(inventarioFisicoSchema), async (req, res) => {
   try {
     const item = await prisma.inventarioFisico.create({
       data: req.body
     })
-    res.json(item)
+    res.status(201).json({ success: true, data: item })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al crear item' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al crear item',
+      code: 'CREATE_ERROR'
+    })
   }
 })
 
-router.put('/:id', async (req, res) => {
+// Actualizar item
+router.put('/:id', validate(inventarioFisicoUpdateSchema), async (req, res) => {
   try {
     const { id } = req.params
     const item = await prisma.inventarioFisico.update({
       where: { id: parseInt(id) },
       data: req.body
     })
-    res.json(item)
+    res.json({ success: true, data: item })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al actualizar item' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al actualizar item',
+      code: 'UPDATE_ERROR'
+    })
   }
 })
 
+// Eliminar item
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params
     await prisma.inventarioFisico.delete({
       where: { id: parseInt(id) }
     })
-    res.json({ message: 'Item eliminado' })
+    res.json({ success: true, message: 'Item eliminado' })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error al eliminar item' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al eliminar item',
+      code: 'DELETE_ERROR'
+    })
   }
 })
 
 // Eliminación masiva
-router.post('/bulk-delete', async (req, res) => {
+router.post('/bulk-delete', validate(bulkDeleteSchema), async (req, res) => {
   try {
-    const { ids } = req.body as { ids: number[] }
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: 'Se requiere un array de IDs' })
-    }
+    const { ids } = req.body
+    
     await prisma.inventarioFisico.deleteMany({
       where: { id: { in: ids } }
     })
-    res.json({ message: `${ids.length} equipos eliminados` })
+    res.json({ success: true, message: `${ids.length} equipos eliminados` })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ message: 'Error en eliminación masiva' })
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error en eliminación masiva',
+      code: 'BULK_DELETE_ERROR'
+    })
   }
 })
 
-router.post('/import', async (req, res) => {
+// Importar items
+router.post('/import', validate(inventarioFisicoImportSchema), async (req, res) => {
   try {
-    const items = req.body.items as Array<{
-      pais?: string
-      categoria?: string
-      marca?: string
-      modelo?: string
-      serie?: string
-      inventario?: string
-      estado?: string
-      responsable?: string
-      observaciones?: string
-      equipo?: string
-      direccionIp?: string
-      ilo?: string
-      descripcion?: string
-      serial?: string
-      sistemaOperativo?: string
-      garantia?: string
-    }>
+    const { items } = req.body
 
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'No se encontraron items para importar' })
+    const str = (v: any) => {
+      if (v === null || v === undefined) return null
+      const trimmed = String(v).trim()
+      return trimmed || null
     }
 
-    const str = (v: any) => v === null || v === undefined ? null : String(v).trim() || null
-
-    const dataToInsert = items.map(s => ({
+    const dataToInsert = items.map((s: any) => ({
       pais: str(s.pais) || 'Colombia',
       categoria: str(s.categoria) || 'Servidor',
       marca: str(s.marca) || 'Dell',
@@ -119,28 +126,43 @@ router.post('/import', async (req, res) => {
       garantia: str(s.garantia)
     }))
 
-    console.log('Inserting inventario fisico:', JSON.stringify(dataToInsert, null, 2))
-
-    const validData = dataToInsert.filter(s => s.equipo || s.direccionIp || s.serie)
+    // Filtrar items válidos (al menos equipo, IP o serie)
+    const validData = dataToInsert.filter((s: any) => s.equipo || s.direccionIp || s.serie)
     
     if (validData.length === 0) {
-      return res.status(400).json({ message: 'No hay items válidos para importar' })
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No hay items válidos para importar',
+        code: 'NO_VALID_ITEMS'
+      })
     }
 
     let created = 0
+    let skipped = 0
+
     for (const item of validData) {
       try {
         await prisma.inventarioFisico.create({ data: item })
         created++
-      } catch (e) {
-        console.log(`Skipping duplicate: ${item.equipo}`)
+      } catch (e: any) {
+        // Ignorar duplicados
+        skipped++
       }
     }
 
-    res.json({ message: `${created} items importados correctamente`, count: created, skipped: validData.length - created })
+    res.json({ 
+      success: true, 
+      message: `${created} items importados correctamente`, 
+      count: created, 
+      skipped 
+    })
   } catch (error: any) {
     console.error('Error importing:', error)
-    res.status(500).json({ message: `Error al importar: ${error.message}` })
+    res.status(500).json({ 
+      success: false, 
+      message: `Error al importar: ${error.message}`,
+      code: 'IMPORT_ERROR'
+    })
   }
 })
 

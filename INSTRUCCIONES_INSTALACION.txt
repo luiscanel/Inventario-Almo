@@ -1,0 +1,233 @@
+================================================================================
+                  INSTALACION - INVENTARIO ALMO (SIN DOCKER)
+================================================================================
+
+Este documento describe cómo instalar la aplicación Inventario Almo en un 
+servidor Linux dedicado sin usar Docker.
+
+
+================================================================================
+REQUISITOS DEL SISTEMA
+================================================================================
+
+Sistema Operativo: Ubuntu 20.04+, Debian 11+, CentOS 8+, Rocky Linux 8+
+Node.js:          20.x
+Nginx:            1.18+
+RAM:              2 GB
+Disco:            10 GB
+
+
+================================================================================
+PASOS DE INSTALACION
+================================================================================
+
+1. PREPARAR EL SERVIDOR
+-------------------------
+# Actualizar sistema
+sudo apt update && sudo apt upgrade -y
+
+# Instalar dependencias básicas
+sudo apt install -y curl wget git build-essential
+
+
+2. DESCARGAR LOS ARCHIVOS
+--------------------------
+# Opción A: Clonar repositorio
+cd /opt
+git clone <URL_DEL_REPOSITORIO> inventario-almo
+
+# Opción B: Copiar archivos locales
+sudo cp -r /ruta/local/inventario-almo /opt/
+
+
+3. EJECUTAR EL INSTALADOR
+--------------------------
+cd /opt/inventario-almo
+sudo chmod +x install-standalone.sh
+sudo ./install-standalone.sh
+
+
+4. VERIFICAR INSTALACION
+------------------------
+# Verificar que el servicio está corriendo
+sudo pm2 status
+
+# Ver logs
+sudo pm2 logs inventario-backend
+
+# Probar endpoint
+curl http://localhost/api/health
+
+
+================================================================================
+CONFIGURACION POST-INSTALACION
+================================================================================
+
+CAMBIAR CREDENCIALES
+--------------------
+cd /opt/inventario-almo/server
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
+const prisma = new PrismaClient();
+
+async function main() {
+  const hashedPassword = await bcrypt.hash('TU_NUEVA_PASSWORD', 10);
+  await prisma.user.update({
+    where: { email: 'jorge.canel@grupoalmo.com' },
+    data: { password: hashedPassword }
+  });
+  console.log('Password actualizada');
+}
+main().catch(e => console.error(e)).finally(() => prisma.\$disconnect());
+"
+
+
+CONFIGURAR SSL (HTTPS)
+----------------------
+# Instalar Certbot
+sudo apt install -y certbot python3-certbot-nginx
+
+# Obtener certificado (reemplaza tu dominio)
+sudo certbot --nginx -d inventario.tudominio.com
+
+
+CONFIGURAR BACKUP
+-----------------
+# Crear script de backup
+sudo cat > /opt/inventario-almo/backup.sh << 'EOF'
+#!/bin/bash
+BACKUP_DIR="/opt/backups"
+DATE=$(date +%Y%m%d_%H%M%S)
+DB_PATH="/var/lib/inventario-almo/prisma/dev.db"
+
+mkdir -p $BACKUP_DIR
+cp $DB_PATH $BACKUP_DIR/inventario_$DATE.db
+find $BACKUP_DIR -name "*.db" -mtime +7 -delete
+echo "Backup completado: inventario_$DATE.db"
+EOF
+
+sudo chmod +x /opt/inventario-almo/backup.sh
+
+# Agregar a crontab (se ejecutará diario a las 2 AM)
+sudo crontab -e
+# Agregar esta línea: 0 2 * * * /opt/inventario-almo/backup.sh
+
+
+================================================================================
+COMANDOS DE GESTION
+================================================================================
+
+| AccION                 | Comando                                    |
+|------------------------|-------------------------------------------|
+| Ver estado             | pm2 status                                |
+| Reiniciar              | pm2 restart inventario-backend           |
+| Ver logs               | pm2 logs inventario-backend              |
+| Detener                | pm2 stop inventario-backend              |
+| Iniciar               | pm2 start inventario-backend             |
+| Logs tiempo real       | pm2 logs inventario-backend --follow     |
+
+
+================================================================================
+ESTRUCTURA DE ARCHIVOS
+================================================================================
+
+/opt/inventario-almo/
+  client/
+    dist/           <- Build de producción
+    src/            <- Código fuente
+  server/
+    dist/           <- Build compilado
+    prisma/         <- Schema de BD
+    src/            <- Código fuente
+  .env              <- Variables de entorno
+  ecosystem.config.js <- Config PM2
+
+/var/lib/inventario-almo/
+  prisma/
+    dev.db          <- Base de datos SQLite
+
+/var/log/inventario-almo/
+  backend-error.log
+  backend-out.log
+
+
+================================================================================
+PUERTOS EN USO
+================================================================================
+
+Puerto 80   -> Nginx (HTTP)
+Puerto 443  -> Nginx (HTTPS) - si SSL configurado
+Puerto 3001 -> Backend API
+
+
+================================================================================
+SOLUCION DE PROBLEMAS
+================================================================================
+
+EL SERVICIO NO INICIA
+---------------------
+# Ver errores detallados
+pm2 logs inventario-backend --err --lines 50
+
+# Verificar que el puerto no esté en uso
+sudo lsof -i :3001
+
+
+ERROR DE BASE DE DATOS
+---------------------
+# Regenerar cliente Prisma
+cd /opt/inventario-almo/server
+npx prisma generate
+npx prisma db push
+
+
+REINSTALAR DESDE CERO
+---------------------
+# Detener servicios
+pm2 delete all
+sudo systemctl stop nginx
+
+# Eliminar archivos
+sudo rm -rf /opt/inventario-almo
+sudo rm -rf /var/lib/inventario-almo
+sudo rm -rf /var/log/inventario-almo
+
+
+================================================================================
+ACTUALIZACION
+================================================================================
+
+cd /opt/inventario-almo
+
+# Detener servicio
+pm2 stop inventario-backend
+
+# Actualizar archivos (git pull o copiar nuevos archivos)
+
+# Reconstruir
+cd server && npm install && npm run build
+cd ../client && npm install && npm run build
+
+# Iniciar servicio
+pm2 restart inventario-backend
+
+
+================================================================================
+CREDENCIALES POR DEFECTO
+================================================================================
+
+Email:    jorge.canel@grupoalmo.com
+Password: Admin123
+
+IMPORTANTE: Cambiar la contraseña después del primer ingreso.
+
+
+================================================================================
+ACCESO
+================================================================================
+
+URL: http://TU_IP_O_DOMINIO
+
+
+================================================================================

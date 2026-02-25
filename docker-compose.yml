@@ -7,12 +7,20 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./server:/app
-      - /app/node_modules
+      - inventario_almo_db:/app/prisma
     environment:
+      - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=file:/app/prisma/dev.db
-      - PORT=3001
+      - PORT=${PORT:-3001}
+      - JWT_SECRET=${JWT_SECRET:-test-secret-min-32-chars-for-dev}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-15 minutes}
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-100}
+      - AUTH_RATE_LIMIT_MAX=${AUTH_RATE_LIMIT_MAX:-5}
     working_dir: /app
+    restart: unless-stopped
+    network_mode: host
 
   frontend:
     build:
@@ -21,10 +29,10 @@ services:
     container_name: inventario-almo-frontend
     ports:
       - "5174:5174"
-    volumes:
-      - ./client/src:/app/src
-      - ./client/public:/app/public
-      - ./client/index.html:/app/index.html
-      - /app/node_modules
     environment:
-      - VITE_API_URL=http://backend:3001
+      - VITE_API_URL=http://localhost:3001
+    restart: unless-stopped
+    network_mode: host
+
+volumes:
+  inventario_almo_db:

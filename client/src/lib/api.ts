@@ -36,7 +36,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
     const error = await response.json().catch(() => ({ message: 'Error de red' }))
     throw new Error(error.message || `Error ${response.status}`)
   }
-  return response.json()
+  const json = await response.json()
+  // Si la respuesta tiene estructura { success, data }, extraer data
+  if (json && typeof json === 'object' && 'data' in json) {
+    return json.data as T
+  }
+  return json as T
 }
 
 // ============================================

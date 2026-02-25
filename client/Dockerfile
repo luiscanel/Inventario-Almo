@@ -17,5 +17,5 @@ RUN npm run build
 # Expose port
 EXPOSE 5174
 
-# Start server
+# Start dev server with proxy
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

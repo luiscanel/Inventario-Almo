@@ -9,16 +9,55 @@ import dashboardNewRoutes from './routes/dashboardNew'
 import adminRoutes from './routes/admin'
 import emailRoutes from './routes/email'
 
+// Importar configuración y seguridad
+import { config } from './config/index.js'
+import { log } from './utils/logger.js'
+import { 
+  helmetMiddleware, 
+  generalRateLimiter, 
+  authRateLimiter,
+  corsOptions,
+  errorHandler,
+  requestLogger
+} from './middleware/security.js'
+
+// Cargar variables de entorno
 dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001
-const HOST = process.env.HOST || '0.0.0.0'
+const PORT = parseInt(config.PORT)
+const HOST = config.HOST
 
-app.use(cors())
-app.use(express.json())
+// ============================================
+// MIDDLEWARE DE SEGURIDAD
+// ============================================
 
-// Rutas públicas
+// Helmet - Headers de seguridad
+app.use(helmetMiddleware)
+
+// Rate limiting general (100 requests / 15 min)
+app.use(generalRateLimiter)
+
+// Rate limiting específico para auth (5 attempts / 15 min)
+app.use('/api/auth', authRateLimiter)
+
+// CORS configurado
+app.use(cors(corsOptions))
+
+// Parser JSON con límite de tamaño (previene ataques de DoS)
+app.use(express.json({ limit: '10kb' }))
+
+// Parser para form data
+app.use(express.urlencoded({ extended: true, limit: '10kb' }))
+
+// Logging de requests
+app.use(requestLogger)
+
+// ============================================
+// RUTAS
+// ============================================
+
+// Rutas públicas (auth tiene rate limiting específico)
 app.use('/api/auth', authRoutes)
 
 // Rutas de dashboards (protegidas)
@@ -31,11 +70,30 @@ app.use('/api/inventario-fisico', inventarioFisicoRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/email', emailRoutes)
 
-// Health check
+// ============================================
+// HEALTH CHECK
+// ============================================
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' })
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: config.NODE_ENV
+  })
 })
 
+// ============================================
+// ERROR HANDLER
+// ============================================
+app.use(errorHandler)
+
+// ============================================
+// INICIO DEL SERVIDOR
+// ============================================
 app.listen(PORT, HOST, () => {
-  console.log(`Server running on port ${PORT}`)
+  log.info(`Inventario Almo iniciado`, {
+    environment: config.NODE_ENV,
+    port: PORT,
+    host: HOST,
+    rateLimit: `${config.RATE_LIMIT_MAX_REQUESTS} req/${config.RATE_LIMIT_WINDOW_MS}`
+  })
 })
