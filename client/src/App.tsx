@@ -10,6 +10,7 @@ import DashboardInventarioFisico from './pages/DashboardInventarioFisico'
 import DashboardResponsables from './pages/DashboardResponsables'
 import Inventory from './pages/Inventory'
 import InventarioFisico from './pages/InventarioFisico'
+import InventoryCloud from './pages/InventoryCloud'
 import Reports from './pages/Reports'
 import Admin from './pages/Admin'
 import Layout from './components/layout/Layout'
@@ -39,6 +40,7 @@ function App() {
           <Route path="inventario-fisico-detalle" element={<DashboardInventarioFisico />} />
           <Route path="responsables" element={<DashboardResponsables />} />
           <Route path="inventory" element={<Inventory />} />
+          <Route path="inventario-cloud" element={<InventoryCloud />} />
           <Route path="inventario-fisico" element={<InventarioFisico />} />
           <Route path="reports" element={<Reports />} />
           <Route path="admin" element={<Admin />} />

@@ -5,7 +5,8 @@ import {
   getResourcesStats, 
   getAvailabilityStats,
   getPhysicalStats,
-  getResponsablesStats 
+  getResponsablesStats,
+  getCloudStats
 } from '../services/dashboardService'
 
 const router = Router()
@@ -59,6 +60,16 @@ router.get('/responsables', async (req, res) => {
   } catch (error) {
     console.error('Error responsables stats:', error)
     res.status(500).json({ message: 'Error al obtener estadísticas de responsables' })
+  }
+})
+
+router.get('/cloud', async (req, res) => {
+  try {
+    const stats = await getCloudStats()
+    res.json(stats)
+  } catch (error) {
+    console.error('Error cloud stats:', error)
+    res.status(500).json({ message: 'Error al obtener estadísticas de cloud' })
   }
 })
 

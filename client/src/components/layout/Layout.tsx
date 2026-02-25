@@ -13,15 +13,17 @@ import {
   Shield,
   Cpu,
   Activity,
-  User
+  User,
+  Cloud
 } from 'lucide-react'
 import { useState } from 'react'
 
 // Definición de módulos con sus permisos requeridos
 // Si no tiene permiso, igual se muestra pero podría redireccionar
 const modulos = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard', permiso: null }, // Siempre visible
-  { to: '/inventory', icon: Server, label: 'Inventario de VMs', permiso: { modulo: 'inventario_servidores', accion: 'ver' } },
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard', permiso: null },
+  { to: '/inventory', icon: Server, label: 'Inv. Onpremise', permiso: { modulo: 'inventario_servidores', accion: 'ver' } },
+  { to: '/inventario-cloud', icon: Cloud, label: 'Inv. Cloud', permiso: { modulo: 'inventario_cloud', accion: 'ver' } },
   { to: '/inventario-fisico', icon: HardDrive, label: 'Inventario Físico', permiso: { modulo: 'inventario_fisico', accion: 'ver' } },
   { to: '/seguridad', icon: Shield, label: 'Seguridad', permiso: null },
   { to: '/recursos', icon: Cpu, label: 'Recursos', permiso: null },

@@ -83,10 +83,13 @@ router.post('/bulk-delete', validate(bulkDeleteSchema), async (req, res) => {
   try {
     const { ids } = req.body
     
+    // Convertir strings a números
+    const numericIds = ids.map((id: any) => Number(id)).filter((id: number) => !isNaN(id))
+    
     await prisma.servidor.deleteMany({
-      where: { id: { in: ids } }
+      where: { id: { in: numericIds } }
     })
-    res.json({ success: true, message: `${ids.length} servidores eliminados` })
+    res.json({ success: true, message: `${numericIds.length} servidores eliminados` })
   } catch (error) {
     console.error('Error:', error)
     res.status(500).json({ 

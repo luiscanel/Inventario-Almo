@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import authRoutes from './routes/auth'
 import servidoresRoutes from './routes/servidores'
 import inventarioFisicoRoutes from './routes/inventarioFisico'
+import inventarioCloudRoutes from './routes/inventarioCloud'
 import dashboardRoutes from './routes/dashboard'
 import dashboardNewRoutes from './routes/dashboardNew'
 import adminRoutes from './routes/admin'
@@ -67,6 +68,7 @@ app.use('/api/dashboard', dashboardRoutes)
 // Rutas protegidas
 app.use('/api/servidores', servidoresRoutes)
 app.use('/api/inventario-fisico', inventarioFisicoRoutes)
+app.use('/api/inventario-cloud', inventarioCloudRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/email', emailRoutes)
 

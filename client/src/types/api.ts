@@ -75,6 +75,30 @@ export interface InventarioFisico {
 }
 
 // ======================
+// Tipos de Inventario Cloud
+// ======================
+export interface InventarioCloud {
+  id: number
+  tenant: string
+  nube: string
+  instanceName: string
+  ipPublica: string | null
+  ipPrivada: string | null
+  instanceType: string | null
+  cpu: number | null
+  ram: string | null
+  storageGib: string | null
+  sistemaOperativo: string | null
+  costoUsd: string | null
+  hostName: string | null
+  responsable: string | null
+  modoUso: string | null
+  service: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+// ======================
 // Tipos de Dashboard
 // ======================
 export interface DashboardStats {

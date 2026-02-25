@@ -18,17 +18,13 @@ import {
   DialogTitle, 
   DialogFooter 
 } from '@/components/ui/dialog'
-import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/select'
 import { getServidores, createServidor, updateServidor, deleteServidor, deleteServidoresBulk, importServidores } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
 import { Servidor } from '@/types'
 import { Plus, Pencil, Trash2, Search, Download, Upload, Columns2, Check, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
-const ambientes = ['Produccion', 'Desarrollo', 'Testing', 'Staging']
-const arquitecturas = ['x86_64', 'ARM64', 'x86', 'PowerPC']
-const sistemasOps = ['Windows Server', 'Linux', 'VMware ESXi', 'CentOS', 'Ubuntu', 'Red Hat', 'Debian', 'Windows Server 2019', 'Windows Server 2022']
-const estados = ['Activo', 'Inactivo', 'Mantenimiento', 'Decomisionado']
+const estados = ['Activo', 'Inactivo', 'Mantenimiento']
 
 const emptyServidor = {
   pais: '',
@@ -68,6 +64,7 @@ export default function Inventory() {
   const [servidores, setServidores] = useState<Servidor[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({})
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingServidor, setEditingServidor] = useState<any>(null)
   const [formData, setFormData] = useState(emptyServidor)
@@ -98,11 +95,19 @@ export default function Inventory() {
     }
   }
 
-  const filteredServidores = servidores.filter(s => 
-    Object.values(s).some(val => 
+  const filteredServidores = servidores.filter(s => {
+    // Filtro global
+    const globalMatch = Object.values(s).some(val => 
       String(val).toLowerCase().includes(search.toLowerCase())
     )
-  )
+    // Filtros por columna
+    const columnMatch = Object.entries(columnFilters).every(([key, value]) => {
+      if (!value) return true
+      const cellValue = String(s[key as keyof Servidor] || '').toLowerCase()
+      return cellValue.includes(value.toLowerCase())
+    })
+    return globalMatch && columnMatch
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -425,7 +430,7 @@ export default function Inventory() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="table-auto w-full">
                 <TableHeader>
                   <TableRow>
                     {selectMode && (
@@ -439,15 +444,26 @@ export default function Inventory() {
                       </TableHead>
                     )}
                     {allColumns.filter(c => visibleColumns.includes(c.key)).map(col => (
-                      <TableHead key={col.key}>{col.label}</TableHead>
+                      <TableHead key={col.key} className="px-1 py-1 text-xs">
+                        <div className="flex flex-col gap-1">
+                          <span>{col.label}</span>
+                          <input
+                            type="text"
+                            placeholder="Filtrar..."
+                            value={columnFilters[col.key] || ''}
+                            onChange={(e) => setColumnFilters(prev => ({...prev, [col.key]: e.target.value}))}
+                            className="text-xs border rounded px-1 py-0.5 w-full"
+                          />
+                        </div>
+                      </TableHead>
                     ))}
-                    {!selectMode && <TableHead className="text-right">Acciones</TableHead>}
+                    {!selectMode && <TableHead className="text-right w-20">Acciones</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredServidores.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={visibleColumns.length + 1} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={visibleColumns.length + 1} className="text-center py-4 text-gray-500">
                         No hay servidores registrados
                       </TableCell>
                     </TableRow>
@@ -465,16 +481,16 @@ export default function Inventory() {
                           </TableCell>
                         )}
                         {allColumns.filter(c => visibleColumns.includes(c.key)).map(col => (
-                          <TableCell key={col.key}>{renderCell(servidor, col.key)}</TableCell>
+                          <TableCell key={col.key} className="px-2 py-1 text-xs whitespace-nowrap">{renderCell(servidor, col.key)}</TableCell>
                         ))}
                         {!selectMode && (
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => handleEdit(servidor)}>
-                                <Pencil className="w-4 h-4" />
+                          <TableCell className="text-right w-20">
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(servidor)}>
+                                <Pencil className="w-3 h-3" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => confirmDelete(servidor.id)}>
-                                <Trash2 className="w-4 h-4 text-red-500" />
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmDelete(servidor.id)}>
+                                <Trash2 className="w-3 h-3 text-red-500" />
                               </Button>
                             </div>
                           </TableCell>
@@ -527,30 +543,15 @@ export default function Inventory() {
               </div>
               <div className="space-y-2">
                 <Label>Ambiente</Label>
-                <Select value={formData.ambiente} onValueChange={(val) => setFormData({...formData, ambiente: val as any})}>
-                  <SelectTrigger><span>{formData.ambiente}</span></SelectTrigger>
-                  <SelectContent>
-                    {ambientes.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Input value={formData.ambiente} onChange={(e) => setFormData({...formData, ambiente: e.target.value})} placeholder="Produccion" />
               </div>
               <div className="space-y-2">
                 <Label>Arquitectura</Label>
-                <Select value={formData.arquitectura} onValueChange={(val) => setFormData({...formData, arquitectura: val as any})}>
-                  <SelectTrigger><span>{formData.arquitectura}</span></SelectTrigger>
-                  <SelectContent>
-                    {arquitecturas.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Input value={formData.arquitectura} onChange={(e) => setFormData({...formData, arquitectura: e.target.value})} placeholder="x86_64" />
               </div>
               <div className="space-y-2">
                 <Label>Sistema Operativo</Label>
-                <Select value={formData.sistemaOperativo} onValueChange={(val) => setFormData({...formData, sistemaOperativo: val})}>
-                  <SelectTrigger><span>{formData.sistemaOperativo || 'Seleccionar...'}</span></SelectTrigger>
-                  <SelectContent>
-                    {sistemasOps.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Input value={formData.sistemaOperativo} onChange={(e) => setFormData({...formData, sistemaOperativo: e.target.value})} placeholder="Linux" />
               </div>
               <div className="space-y-2">
                 <Label>Versión O.S</Label>
@@ -562,12 +563,14 @@ export default function Inventory() {
               </div>
               <div className="space-y-2">
                 <Label>Estado</Label>
-                <Select value={formData.estado} onValueChange={(val) => setFormData({...formData, estado: val as any})}>
-                  <SelectTrigger><span>{formData.estado}</span></SelectTrigger>
-                  <SelectContent>
-                    {estados.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <select 
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={formData.estado || ''}
+                  onChange={(e) => setFormData({...formData, estado: e.target.value})}
+                >
+                  <option value="">Seleccionar...</option>
+                  {estados.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Responsable</Label>

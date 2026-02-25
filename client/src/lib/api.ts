@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/store/authStore'
-import type { Servidor, Usuario, InventarioFisico, SecurityStats, ResourcesStats, EmailConfig, ImportResult, Permiso } from '@/types/api'
+import type { Servidor, Usuario, InventarioFisico, InventarioCloud, SecurityStats, ResourcesStats, EmailConfig, ImportResult, Permiso } from '@/types/api'
 
 // Tipo para respuesta de login
 export interface LoginResponse {
@@ -369,4 +369,59 @@ export async function sendReport(email: string, tipo: string, filtro: string, ti
     body: JSON.stringify({ email, tipo, filtro, tipoReporte, titulo }),
   })
   return handleResponse<{ success: boolean; message: string }>(res)
+}
+
+// ============================================
+// Inventario Cloud
+// ============================================
+
+export async function getInventarioCloud(): Promise<InventarioCloud[]> {
+  const res = await fetch(`${API_URL}/inventario-cloud`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<InventarioCloud[]>(res)
+}
+
+export async function createInventarioCloud(data: Partial<InventarioCloud>): Promise<InventarioCloud> {
+  const res = await fetch(`${API_URL}/inventario-cloud`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse<InventarioCloud>(res)
+}
+
+export async function updateInventarioCloud(id: number, data: Partial<InventarioCloud>): Promise<InventarioCloud> {
+  const res = await fetch(`${API_URL}/inventario-cloud/${id}`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse<InventarioCloud>(res)
+}
+
+export async function deleteInventarioCloud(id: number): Promise<void> {
+  const res = await fetch(`${API_URL}/inventario-cloud/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  })
+  return handleResponse<void>(res)
+}
+
+export async function importInventarioCloud(items: any[]): Promise<ImportResult> {
+  const res = await fetch(`${API_URL}/inventario-cloud/import`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ items }),
+  })
+  return handleResponse<ImportResult>(res)
+}
+
+export async function bulkDeleteInventarioCloud(ids: number[]): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/inventario-cloud/bulk-delete`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ ids }),
+  })
+  return handleResponse<{ message: string }>(res)
 }

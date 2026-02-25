@@ -92,6 +92,27 @@ model InventarioFisico {
   updatedAt      DateTime @updatedAt
 }
 
+model InventarioCloud {
+  id               Int     @id @default(autoincrement())
+  tenant           String
+  nube             String
+  instanceName     String
+  ipPublica        String?
+  ipPrivada        String?
+  instanceType     String?
+  cpu              Int?
+  ram              String?
+  storageGib       String?
+  sistemaOperativo String?
+  costoUsd         String?
+  hostName         String?
+  responsable      String?
+  modoUso          String?
+  service          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 model Configuracion {
   id        Int      @id @default(autoincrement())
   clave     String   @unique

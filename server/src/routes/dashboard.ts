@@ -17,8 +17,13 @@ router.get('/stats', async (req, res) => {
     const vmsMantenimiento = servidores.filter(s => s.estado === 'Mantenimiento').length
     const vmsDecomisionados = servidores.filter(s => s.estado === 'Decomisionado').length
     
-    // Antivirus stats
-    const conAntivirus = servidores.filter(s => s.antivirus && s.antivirus.trim() !== '').length
+    // Antivirus stats - detectar "sin antivirus" como no protegido
+    const isProtected = (av: string | null) => {
+      if (!av || !av.trim()) return false
+      const v = av.toLowerCase().trim()
+      return v !== 'sin antivirus' && v !== 'ninguno' && v !== 'no'
+    }
+    const conAntivirus = servidores.filter(s => isProtected(s.antivirus)).length
     const sinAntivirus = totalVMs - conAntivirus
     
     // Por país (VMs)

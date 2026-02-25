@@ -67,9 +67,16 @@ export async function getSecurityStats() {
     count: item.count
   }))
 
+  // Función para verificar si tiene antivirus válido
+  const isProtected = (av: string | null | undefined) => {
+    if (!av || !av.trim()) return false
+    const v = av.toLowerCase().trim()
+    return v !== 'sin antivirus' && v !== 'ninguno' && v !== 'no'
+  }
+
   // VMs sin antivirus
   const vmsSinAntivirus = servidores
-    .filter(s => !s.antivirus?.trim())
+    .filter(s => !isProtected(s.antivirus))
     .map(s => ({
       id: s.id,
       host: s.host,
@@ -502,5 +509,79 @@ export async function getResponsablesStats() {
     porcentajeEquiposConResponsable: equiposFisicos.length > 0 ? Math.round((equiposConResponsable / equiposFisicos.length) * 100) : 0,
     responsablesCombinados,
     listaResponsables
+  }
+}
+
+// Servicio de Cloud
+export async function getCloudStats() {
+  const cloudItems = await prisma.inventarioCloud.findMany()
+
+  // Por proveedor (nube)
+  const nubeCounts = groupBy(cloudItems, 'nube')
+  const porNube = toSortedArray(nubeCounts).map(item => ({
+    nube: item.name || 'No especificado',
+    count: item.count
+  }))
+
+  // Por tenant
+  const tenantCounts = groupBy(cloudItems, 'tenant')
+  const porTenant = toSortedArray(tenantCounts).slice(0, 10).map(item => ({
+    tenant: item.name || 'No especificado',
+    count: item.count
+  }))
+
+  // Por modo de uso
+  const modoUsoCounts = groupBy(cloudItems, 'modoUso')
+  const porModoUso = toSortedArray(modoUsoCounts).map(item => ({
+    modoUso: item.name || 'No especificado',
+    count: item.count
+  }))
+
+  // Por service
+  const serviceCounts = groupBy(cloudItems, 'service')
+  const porService = toSortedArray(serviceCounts).slice(0, 10).map(item => ({
+    service: item.name || 'No especificado',
+    count: item.count
+  }))
+
+  // Calcular costo total
+  const costoTotal = cloudItems.reduce((acc, item) => {
+    return acc + parseToNumber(item.costoUsd)
+  }, 0)
+
+  // Total CPUs
+  const totalCpu = cloudItems.reduce((acc, item) => {
+    return acc + (item.cpu || 0)
+  }, 0)
+
+  // Por sistema operativo
+  const soCounts = groupBy(cloudItems, 'sistemaOperativo')
+  const porSO = toSortedArray(soCounts).slice(0, 10).map(item => ({
+    so: item.name || 'No especificado',
+    count: item.count
+  }))
+
+  // Por responsable
+  const responsableCounts = groupBy(cloudItems, 'responsable')
+  const porResponsable = toSortedArray(responsableCounts).slice(0, 10).map(item => ({
+    responsable: item.name || 'No especificado',
+    count: item.count
+  }))
+
+  // Instancias con responsable
+  const conResponsable = cloudItems.filter(i => i.responsable).length
+
+  return {
+    totalInstancias: cloudItems.length,
+    porNube,
+    porTenant,
+    porModoUso,
+    porService,
+    porSO,
+    porResponsable,
+    costoTotal: costoTotal.toFixed(2),
+    totalCpu,
+    conResponsable,
+    porcentajeConResponsable: cloudItems.length > 0 ? Math.round((conResponsable / cloudItems.length) * 100) : 0
   }
 }

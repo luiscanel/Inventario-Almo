@@ -31,27 +31,27 @@ export const servidorSchema = z.object({
   cpu: z.number().int().min(0).max(999).optional().nullable(),
   memoria: z.string().max(50).optional().nullable(),
   disco: z.string().max(50).optional().nullable(),
-  ambiente: z.enum(['Produccion', 'Desarrollo', 'Testing', 'Staging']).optional().nullable(),
+  ambiente: z.string().max(50).optional().nullable(),
   arquitectura: z.string().max(50).optional().nullable(),
   sistemaOperativo: z.string().max(100).optional().nullable(),
   version: z.string().max(50).optional().nullable(),
   antivirus: z.string().max(100).optional().nullable(),
-  estado: z.enum(['Activo', 'Inactivo', 'Mantenimiento', 'Decomisionado']).optional().nullable(),
+  estado: z.enum(['Activo', 'Inactivo', 'Mantenimiento']).optional().nullable(),
   responsable: z.string().max(255).optional().nullable(),
 })
 
 export const servidorUpdateSchema = servidorSchema.partial()
 
 export const servidorImportSchema = z.object({
-  servidores: z.array(servidorSchema)
+  servidores: z.array(z.any())
     .min(1, 'Debe haber al menos un servidor')
-    .max(1000, 'Máximo 1000 servidores por importación')
+    .max(5000, 'Máximo 5000 servidores por importación')
 })
 
 export const bulkDeleteSchema = z.object({
-  ids: z.array(z.number().int().positive())
+  ids: z.array(z.union([z.number(), z.string()]))
     .min(1, 'Debe seleccionar al menos un elemento')
-    .max(100, 'Máximo 100 elementos por eliminación')
+    .max(500, 'Máximo 500 elementos por eliminación')
 })
 
 export type ServidorInput = z.infer<typeof servidorSchema>
@@ -67,7 +67,7 @@ export const inventarioFisicoSchema = z.object({
   modelo: z.string().max(255).optional().nullable(),
   serie: z.string().max(255).optional().nullable(),
   inventario: z.string().max(255).optional().nullable(),
-  estado: z.enum(['Activo', 'Inactivo', 'Mantenimiento', 'Decomisionado', 'Retirado']).optional().nullable(),
+  estado: z.enum(['Activo', 'Inactivo', 'Mantenimiento']).optional().nullable(),
   responsable: z.string().max(255).optional().nullable(),
   observaciones: z.string().max(1000).optional().nullable(),
   equipo: z.string().max(255).optional().nullable(),
@@ -82,12 +82,44 @@ export const inventarioFisicoSchema = z.object({
 export const inventarioFisicoUpdateSchema = inventarioFisicoSchema.partial()
 
 export const inventarioFisicoImportSchema = z.object({
-  items: z.array(inventarioFisicoSchema)
+  items: z.array(z.any())
     .min(1, 'Debe haber al menos un item')
     .max(5000, 'Máximo 5000 items por importación')
 })
 
 export type InventarioFisicoInput = z.infer<typeof inventarioFisicoSchema>
+
+// ============================================
+// INVENTARIO CLOUD VALIDATION
+// ============================================
+
+export const inventarioCloudSchema = z.object({
+  tenant: z.string().max(100).optional().nullable(),
+  nube: z.string().max(100).optional().nullable(),
+  instanceName: z.string().max(255).optional().nullable(),
+  ipPublica: z.string().max(45).optional().nullable(),
+  ipPrivada: z.string().max(45).optional().nullable(),
+  instanceType: z.string().max(100).optional().nullable(),
+  cpu: z.number().int().min(0).max(999).optional().nullable(),
+  ram: z.string().max(50).optional().nullable(),
+  storageGib: z.string().max(50).optional().nullable(),
+  sistemaOperativo: z.string().max(100).optional().nullable(),
+  costoUsd: z.string().max(50).optional().nullable(),
+  hostName: z.string().max(255).optional().nullable(),
+  responsable: z.string().max(255).optional().nullable(),
+  modoUso: z.string().max(100).optional().nullable(),
+  service: z.string().max(255).optional().nullable(),
+})
+
+export const inventarioCloudUpdateSchema = inventarioCloudSchema.partial()
+
+export const inventarioCloudImportSchema = z.object({
+  items: z.array(z.any())
+    .min(1, 'Debe haber al menos un item')
+    .max(5000, 'Máximo 5000 items por importación')
+})
+
+export type InventarioCloudInput = z.infer<typeof inventarioCloudSchema>
 
 // ============================================
 // ADMIN VALIDATION
