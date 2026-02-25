@@ -118,16 +118,16 @@ export default function InventoryCloud() {
           const found = rowKeys.find(k => k.toLowerCase().includes(kw.toLowerCase()))
           if (found && row[found] !== undefined && row[found] !== null && String(row[found]).trim() !== "") { return String(row[found]).trim() }
         }
-        return ""
+        return null
       }
       const dataToSend = jsonData.map((row: any) => ({
         tenant: findColumn(row, "tenant"), nube: findColumn(row, "nube", "cloud", "provider"), instanceName: findColumn(row, "instance name", "instance", "name", "vm"),
-        ipPublica: findColumn(row, "ip pública", "public ip", "ippublica", "publicip") || null, ipPrivada: findColumn(row, "ip privada", "private ip", "ipprivada", "privateip") || null,
-        instanceType: findColumn(row, "instance type", "type", "instancetype"), cpu: parseInt(String(findColumn(row, "cpu", "vcpu", "v cpu"))) || 0,
+        ipPublica: findColumn(row, "ip pública", "public ip", "ippublica", "publicip"), ipPrivada: findColumn(row, "ip privada", "private ip", "ipprivada", "privateip"),
+        instanceType: findColumn(row, "instance type", "type", "instancetype"), cpu: parseInt(String(findColumn(row, "cpu", "vcpu", "v cpu") || "0")) || 0,
         ram: findColumn(row, "ram", "memory", "memoria"), storageGib: findColumn(row, "storage", "disk", "disco", "storagegib"),
         sistemaOperativo: findColumn(row, "sistema operativo", "so", "os", "s.o", "operativo"), costoUsd: findColumn(row, "costo", "cost", "usd", "precio"),
         hostName: findColumn(row, "hostname", "host name", "host"), responsable: findColumn(row, "responsable", "owner", "responsible"),
-        modoUso: findColumn(row, "modo", "use", "usage", "modo de uso") || null, service: findColumn(row, "service", "servicio") || null
+        modoUso: findColumn(row, "modo", "use", "usage", "modo de uso"), service: findColumn(row, "service", "servicio")
       }))
       const result = await importInventarioCloud(dataToSend)
       toast({ title: result.message || `${result.count} instancias importadas correctamente` })
