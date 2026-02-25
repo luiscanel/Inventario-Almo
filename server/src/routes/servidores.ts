@@ -112,14 +112,22 @@ router.post('/import', async (req, res) => {
       const nombreVM = server.nombreVM || server.nombreVm || server.nombrevm || null
       const version = server.version || server.versionOs || server.versionos || null
 
+      // Función para parsear y redondear números
+      const parseNumber = (v: any): string => {
+        if (v === null || v === undefined) return null
+        const num = parseFloat(String(v).replace(/[^0-9.]/g, ''))
+        if (isNaN(num)) return null
+        return Math.round(num).toString()
+      }
+
       return {
         pais: str(server.pais) || 'Colombia',
         host: str(server.host) || '',
         nombreVM: str(nombreVM),
         ip: str(server.ip),
         cpu: parseInt(String(server.cpu)) || 0,
-        memoria: str(server.memoria),
-        disco: str(server.disco),
+        memoria: parseNumber(server.memoria),
+        disco: parseNumber(server.disco),
         ambiente: str(server.ambiente) || 'Produccion',
         arquitectura: str(s.arquitectura) || 'x86_64',
         sistemaOperativo: str(s.sistemaOperativo),

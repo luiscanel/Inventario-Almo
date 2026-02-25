@@ -253,7 +253,9 @@ export default function DashboardRecursos() {
                       {idx + 1}
                     </span>
                     <div>
-                      <p className="text-sm font-medium truncate max-w-[120px]">{server.host}</p>
+                      <p className="text-sm font-medium truncate max-w-[120px]">
+                        {server.nombreVM || server.host}
+                      </p>
                       <p className="text-xs text-gray-500">{server.pais} • {server.ambiente}</p>
                     </div>
                   </div>
@@ -281,7 +283,9 @@ export default function DashboardRecursos() {
                       {idx + 1}
                     </span>
                     <div>
-                      <p className="text-sm font-medium truncate max-w-[120px]">{server.host}</p>
+                      <p className="text-sm font-medium truncate max-w-[120px]">
+                        {server.nombreVM || server.host}
+                      </p>
                       <p className="text-xs text-gray-500">{server.pais}</p>
                     </div>
                   </div>
@@ -309,7 +313,9 @@ export default function DashboardRecursos() {
                       {idx + 1}
                     </span>
                     <div>
-                      <p className="text-sm font-medium truncate max-w-[120px]">{server.host}</p>
+                      <p className="text-sm font-medium truncate max-w-[120px]">
+                        {server.nombreVM || server.host}
+                      </p>
                       <p className="text-xs text-gray-500">{server.pais}</p>
                     </div>
                   </div>
