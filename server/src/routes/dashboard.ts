@@ -51,6 +51,16 @@ router.get('/stats', async (req, res) => {
     })
     const porSO = Object.entries(soCount).map(([so, count]) => ({ so, count })).sort((a, b) => b.count - a.count)
     
+    // Por sistema operativo con versión (VMs)
+    const soVersionCount: Record<string, number> = {}
+    servidores.forEach(s => {
+      const so = s.sistemaOperativo || 'Sin especificar'
+      const version = s.version || ''
+      const soVersion = version ? `${so} ${version}` : so
+      soVersionCount[soVersion] = (soVersionCount[soVersion] || 0) + 1
+    })
+    const porSOConVersion = Object.entries(soVersionCount).map(([so, count]) => ({ so, count })).sort((a, b) => b.count - a.count)
+    
     // Stats de Inventario Físico
     const inventarioFisico = await prisma.inventarioFisico.findMany()
     
@@ -93,6 +103,7 @@ router.get('/stats', async (req, res) => {
       porAmbiente,
       porEstado,
       porSO,
+      porSOConVersion,
       // Inventario Físico
       totalFisico,
       porPaisFisico,

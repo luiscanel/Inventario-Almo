@@ -54,6 +54,7 @@ interface Stats {
   porAmbiente: { ambiente: string; count: number }[]
   porEstado: { estado: string; count: number }[]
   porSO: { so: string; count: number }[]
+  porSOConVersion: { so: string; count: number }[]
   totalFisico: number
   porPaisFisico: { pais: string; count: number }[]
   porCategoria: { categoria: string; count: number }[]
@@ -367,6 +368,37 @@ export default function Dashboard() {
                       <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
                       <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9' }} />
                       <Bar dataKey="count" fill="url(#barGradSO)" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Por Sistema Operativo con Versión */}
+            <Card className="hover:shadow-xl transition-all duration-300 border-0 overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                    <Database className="w-4 h-4 text-white" />
+                  </div>
+                  SO con Versión
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats?.porSOConVersion?.slice(0, 15) || []}>
+                      <defs>
+                        <linearGradient id="barGradSOVersion" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f97316" />
+                          <stop offset="100%" stopColor="#fbbf24" />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis dataKey="so" tick={{ fontSize: 9, fill: '#64748b' }} tickLine={false} axisLine={false} angle={-45} textAnchor="end" height={80} />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                      <Bar dataKey="count" fill="url(#barGradSOVersion)" radius={[6, 6, 0, 0]} maxBarSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
