@@ -44,11 +44,11 @@ app.use('/api/auth', authRateLimiter)
 // CORS configurado
 app.use(cors(corsOptions))
 
-// Parser JSON con límite de tamaño (previene ataques de DoS)
-app.use(express.json({ limit: '10kb' }))
+// Parser JSON con límite de tamaño (10MB para importaciones grandes)
+app.use(express.json({ limit: '10mb' }))
 
 // Parser para form data
-app.use(express.urlencoded({ extended: true, limit: '10kb' }))
+app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
 // Logging de requests
 app.use(requestLogger)
