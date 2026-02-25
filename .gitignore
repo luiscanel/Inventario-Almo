@@ -6,3 +6,4 @@ build/
 *.db
 .DS_Store
 *.tgz
+.blackboxcli/

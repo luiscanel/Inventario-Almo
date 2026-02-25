@@ -39,6 +39,13 @@ export interface InventarioFisico {
   estado: string;
   responsable: string | null;
   observaciones: string | null;
+  equipo: string | null;
+  direccionIp: string | null;
+  ilo: string | null;
+  descripcion: string | null;
+  serial: string | null;
+  sistemaOperativo: string | null;
+  garantia: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

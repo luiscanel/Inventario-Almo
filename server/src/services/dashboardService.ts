@@ -346,22 +346,57 @@ export async function getPhysicalStats() {
   const porCategoria = toSortedArray(groupBy(equipos, 'categoria'))
   const porMarca = toSortedArray(groupBy(equipos, 'marca'))
   const porPais = toSortedArray(groupBy(equipos, 'pais'))
+  const porResponsable = toSortedArray(groupBy(equipos, 'responsable'))
+  const porModelo = toSortedArray(groupBy(equipos, 'modelo'))
 
   // Equipos con garantía expirada
   const hoy = new Date()
-  const equiposSinGarantia = equipos.filter(e => !e.garantia)
-  const equiposGarantiaActiva = equipos.filter(e => {
-    if (!e.garantia) return false
-    return new Date(e.garantia) > hoy
-  })
-  const equiposGarantiaExpirada = equipos.filter(e => {
-    if (!e.garantia) return false
-    return new Date(e.garantia) <= hoy
-  })
+  const treintaDias = new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+  // Función para parsear fecha de garantía
+  const parseGarantia = (g: string | null): Date | null => {
+    if (!g || g === 'Sin Garantia' || g === 'n/a' || g.trim() === '') return null
+    const date = new Date(g)
+    return isNaN(date.getTime()) ? null : date
+  }
+
+  const garantiaProxima = equipos
+    .filter(e => {
+      const fecha = parseGarantia(e.garantia)
+      return fecha && fecha > hoy && fecha <= treintaDias
+    })
+    .map(e => ({
+      id: e.id,
+      equipo: e.equipo,
+      modelo: e.modelo,
+      serie: e.serie,
+      garantia: e.garantia!,
+      responsable: e.responsable,
+      pais: e.pais
+    }))
+
+  const garantiaVencida = equipos
+    .filter(e => {
+      const fecha = parseGarantia(e.garantia)
+      return fecha && fecha <= hoy
+    })
+    .map(e => ({
+      id: e.id,
+      equipo: e.equipo,
+      modelo: e.modelo,
+      serie: e.serie,
+      garantia: e.garantia!,
+      responsable: e.responsable,
+      pais: e.pais
+    }))
 
   // Cobertura de IP
-  const conIP = equipos.filter(e => (e as any).direccionIp && (e as any).direccionIp.trim()).length
+  const conIP = equipos.filter(e => e.direccionIp && e.direccionIp.trim()).length
   const sinIP = equipos.length - conIP
+
+  // Cobertura de ILO
+  const conIlo = equipos.filter(e => e.ilo && e.ilo.trim()).length
+  const sinIlo = equipos.length - conIlo
 
   return {
     totalEquipos: equipos.length,
@@ -369,16 +404,14 @@ export async function getPhysicalStats() {
     porCategoria,
     porMarca,
     porPais,
-    garantia: {
-      sinGarantia: equiposSinGarantia.length,
-      activa: equiposGarantiaActiva.length,
-      expirada: equiposGarantiaExpirada.length
-    },
-    ip: {
-      conIP,
-      sinIP,
-      porcentaje: calculatePercentage(conIP, equipos.length)
-    }
+    porResponsable,
+    porModelo,
+    garantiaProxima,
+    garantiaVencida,
+    conIp: conIP,
+    sinIp: sinIP,
+    conIlo,
+    sinIlo
   }
 }
 
@@ -387,42 +420,87 @@ export async function getResponsablesStats() {
   const servidores = await prisma.servidor.findMany()
   const equiposFisicos = await prisma.inventarioFisico.findMany()
 
-  // VMs por responsable
-  const respVMCount: Record<string, { total: number; activo: number; inactivo: number; paises: Set<string> }> = {}
+  // Combinar responsables de VMs y equipos físicos
+  const allResponsables = new Map<string, {
+    totalVMs: number
+    vmsActivos: number
+    vmsInactivos: number
+    vmsMantenimiento: number
+    totalEquipos: number
+    paises: string[]
+    categorias: string[]
+  }>()
+
+  // Procesar VMs (servidores)
   servidores.forEach(s => {
     const resp = s.responsable || 'Sin asignar'
-    if (!respVMCount[resp]) {
-      respVMCount[resp] = { total: 0, activo: 0, inactivo: 0, paises: new Set() }
+    if (!allResponsables.has(resp)) {
+      allResponsables.set(resp, {
+        totalVMs: 0,
+        vmsActivos: 0,
+        vmsInactivos: 0,
+        vmsMantenimiento: 0,
+        totalEquipos: 0,
+        paises: [],
+        categorias: []
+      })
     }
-    respVMCount[resp].total++
-    if (s.estado === 'Activo') respVMCount[resp].activo++
-    if (s.estado === 'Inactivo') respVMCount[resp].inactivo++
-    if (s.pais) respVMCount[resp].paises.add(s.pais)
+    const data = allResponsables.get(resp)!
+    data.totalVMs++
+    if (s.estado === 'Activo') data.vmsActivos++
+    if (s.estado === 'Inactivo') data.vmsInactivos++
+    if (s.estado === 'Mantenimiento') data.vmsMantenimiento++
+    if (s.pais && !data.paises.includes(s.pais)) data.paises.push(s.pais)
   })
 
-  const porResponsable = Object.entries(respVMCount).map(([responsable, data]) => ({
-    responsable,
-    totalVMs: data.total,
-    activo: data.activo,
-    inactivo: data.inactivo,
-    paises: data.paises.size
-  })).sort((a, b) => b.totalVMs - a.totalVMs)
-
-  // Equipos físicos por responsable
-  const respFisicoCount: Record<string, number> = {}
+  // Procesar equipos físicos
   equiposFisicos.forEach(e => {
     const resp = e.responsable || 'Sin asignar'
-    respFisicoCount[resp] = (respFisicoCount[resp] || 0) + 1
+    if (!allResponsables.has(resp)) {
+      allResponsables.set(resp, {
+        totalVMs: 0,
+        vmsActivos: 0,
+        vmsInactivos: 0,
+        vmsMantenimiento: 0,
+        totalEquipos: 0,
+        paises: [],
+        categorias: []
+      })
+    }
+    const data = allResponsables.get(resp)!
+    data.totalEquipos++
+    if (e.pais && !data.paises.includes(e.pais)) data.paises.push(e.pais)
+    if (e.categoria && !data.categorias.includes(e.categoria)) data.categorias.push(e.categoria)
   })
 
-  const porResponsableFisico = Object.entries(respFisicoCount)
-    .map(([responsable, count]) => ({ responsable, count }))
-    .sort((a, b) => b.count - a.count)
+  // Calcular estadísticas
+  const responsablesCombinados = Array.from(allResponsables.entries())
+    .map(([responsable, data]) => ({
+      responsable,
+      totalVMs: data.totalVMs,
+      vmsActivos: data.vmsActivos,
+      vmsInactivos: data.vmsInactivos,
+      vmsMantenimiento: data.vmsMantenimiento,
+      totalEquipos: data.totalEquipos,
+      paises: data.paises,
+      categorias: data.categorias
+    }))
+    .sort((a, b) => (b.totalVMs + b.totalEquipos) - (a.totalVMs + a.totalEquipos))
+
+  const listaResponsables = responsablesCombinados.map(r => r.responsable)
+
+  // Calcular VMs con responsable
+  const vmsConResponsable = servidores.filter(s => s.responsable).length
+  const equiposConResponsable = equiposFisicos.filter(e => e.responsable).length
 
   return {
     totalVMs: servidores.length,
-    totalFisicos: equiposFisicos.length,
-    porResponsable,
-    porResponsableFisico
+    totalEquipos: equiposFisicos.length,
+    vmsConResponsable,
+    equiposConResponsable,
+    porcentajeVMsConResponsable: servidores.length > 0 ? Math.round((vmsConResponsable / servidores.length) * 100) : 0,
+    porcentajeEquiposConResponsable: equiposFisicos.length > 0 ? Math.round((equiposConResponsable / equiposFisicos.length) * 100) : 0,
+    responsablesCombinados,
+    listaResponsables
   }
 }

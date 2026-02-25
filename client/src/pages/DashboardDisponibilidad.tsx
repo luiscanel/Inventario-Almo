@@ -220,7 +220,8 @@ export default function DashboardDisponibilidad() {
                     innerRadius={50}
                     outerRadius={80}
                     paddingAngle={3}
-                    dataKey="value"
+                    dataKey="count"
+                    nameKey="name"
                   >
                     {estadoData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS_ESTADO[entry.name as keyof typeof COLORS_ESTADO] || COLORS[index % COLORS.length]} />

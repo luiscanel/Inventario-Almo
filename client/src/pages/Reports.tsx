@@ -79,7 +79,7 @@ export default function Reports() {
     }
   }
 
-  const getFilterLabel = () => ({ ambiente: 'Ambiente', pais: 'País', estado: 'Estado', arquitectura: 'Arquitectura', 'sistema-operativo': 'Sistema Operativo', responsable: 'Responsable', 'inventario-fisico': 'Estado' }[reportType] || 'Filtro')
+  const getFilterLabel = () => ({ ambiente: 'Ambiente', pais: 'País', estado: 'Estado', arquitectura: 'Arquitectura', 'sistema-operativo': 'Sistema Operativo', responsable: 'Responsable', 'inventario-fisico': 'Estado', completo: 'Filtro', 'sin-antivirus': 'Filtro', produccion: 'Filtro', recursos: 'Filtro', disponibilidad: 'Filtro' }[reportType] || 'Filtro')
 
   const exportToExcel = () => {
     setLoading(true)
@@ -145,7 +145,7 @@ export default function Reports() {
         <Card className="lg:col-span-1">
           <CardHeader><CardTitle className="flex items-center gap-2"><Calendar className="w-5 h-5" />Configuración</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            {showFilter && (<div className="space-y-2"><Label>{getFilterLabel()}</Label><Select value={filterValue} onValueChange={setFilterValue}><SelectTrigger><span>{filterValue || 'Seleccionar...'}</span></SelectTrigger><SelectContent>{filterOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent></Select></div>)}
+            {showFilter && (<div className="space-y-2"><Label>{getFilterLabel()}</Label><Select value={filterValue || ''} onValueChange={setFilterValue}><SelectTrigger><span>{filterValue || 'Seleccionar...'}</span></SelectTrigger><SelectContent>{filterOptions.filter(Boolean).map(opt => <SelectItem key={opt} value={opt || ''}>{opt}</SelectItem>)}</SelectContent></Select></div>)}
             <div className="pt-4 border-t"><p className="text-sm text-gray-500 mb-3"><Calendar className="w-4 h-4 inline mr-1" />Fecha: {new Date().toLocaleDateString('es-CO')}</p><p className="text-sm font-medium">Total: <span className="text-primary">{currentData.length}</span></p></div>
             {stats && (<div className="pt-4 border-t space-y-2"><p className="text-sm font-medium text-gray-700">Resumen:</p><div className="grid grid-cols-2 gap-2 text-xs"><div className="bg-green-50 p-2 rounded"><span className="text-green-600 font-medium">{stats.activos}</span> Activos</div><div className="bg-red-50 p-2 rounded"><span className="text-red-600 font-medium">{stats.inactivos}</span> Inactivos</div><div className="bg-blue-50 p-2 rounded"><span className="text-blue-600 font-medium">{stats.produccion}</span> Producción</div><div className="bg-yellow-50 p-2 rounded"><span className="text-yellow-600 font-medium">{stats.sinAntivirus}</span> Sin AV</div><div className="bg-purple-50 p-2 rounded col-span-2"><span className="text-purple-600 font-medium">{stats.totalCpu}</span> CPU Total</div><div className="bg-cyan-50 p-2 rounded col-span-2"><span className="text-cyan-600 font-medium">{stats.totalMemoria} GB</span> Memoria</div></div></div>)}
           </CardContent>
