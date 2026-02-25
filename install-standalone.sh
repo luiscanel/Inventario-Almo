@@ -3,8 +3,7 @@
 # ============================================
 # INSTALADOR - Inventario Almo (Sin Docker)
 # ============================================
-# Este script instala la aplicación en un servidor Linux dedicado
-# sin usar Docker.
+# Corregido: TypeScript, PM2, Prisma 5, variables de entorno
 
 set -e
 
@@ -22,7 +21,7 @@ echo ""
 # ============================================
 # 1. DETECTAR SISTEMA
 # ============================================
-echo -e "${YELLOW}[1/8] Detectando sistema operativo...${NC}"
+echo -e "${YELLOW}[1/10] Detectando sistema operativo...${NC}"
 
 if [ -f /etc/os-release ]; then
     . /etc/os-release
@@ -37,11 +36,11 @@ echo "Sistema detectado: $OS"
 # ============================================
 # 2. INSTALAR DEPENDENCIAS
 # ============================================
-echo -e "${YELLOW}[2/8] Instalando dependencias del sistema...${NC}"
+echo -e "${YELLOW}[2/10] Instalando dependencias del sistema...${NC}"
 
 if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     apt-get update
-    apt-get install -y curl wget git build-essential nginx
+    apt-get install -y curl wget git build-essential nginx sqlite3
     
     # Instalar Node.js 20
     if ! command -v node &> /dev/null; then
@@ -50,16 +49,15 @@ if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     fi
     
 elif [ "$OS" = "centos" ] || [ "$OS" = "rhel" ] || [ "$OS" = "rocky" ] || [ "$OS" = "alma" ]; then
-    yum install -y curl wget git nginx
+    yum install -y curl wget git nginx sqlite
     
-    # Instalar Node.js 20
     if ! command -v node &> /dev/null; then
         curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
         yum install -y nodejs
     fi
     
 elif [ "$OS" = "fedora" ]; then
-    dnf install -y curl wget git nginx
+    dnf install -y curl wget git nginx sqlite
     if ! command -v node &> /dev/null; then
         curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
         dnf install -y nodejs
@@ -74,66 +72,57 @@ echo -e "${GREEN}Dependencias instaladas${NC}"
 # ============================================
 # 3. CREAR USUARIO Y DIRECTORIOS
 # ============================================
-echo -e "${YELLOW}[3/8] Creando estructura de directorios...${NC}"
-
-# Crear usuario si no existe
-if ! id -u inventario &> /dev/null; then
-    useradd -m -s /bin/bash inventario
-    echo "Usuario 'inventario' creado"
-fi
+echo -e "${YELLOW}[3/10] Creando estructura de directorios...${NC}"
 
 APP_DIR="/opt/inventario-almo"
 DATA_DIR="/var/lib/inventario-almo"
 LOG_DIR="/var/log/inventario-almo"
 
 mkdir -p $APP_DIR $DATA_DIR/prisma $LOG_DIR
-chown -R inventario:inventario $APP_DIR $DATA_DIR $LOG_DIR
+chown -R $(whoami):$(whoami) $APP_DIR $DATA_DIR $LOG_DIR 2>/dev/null || true
 
 echo "Directorios creados en $APP_DIR"
 
 # ============================================
 # 4. COPIAR ARCHIVOS
 # ============================================
-echo -e "${YELLOW}[4/8] Copiando archivos de la aplicación...${NC}"
+echo -e "${YELLOW}[4/10] Copiando archivos de la aplicación...${NC}"
 
-# Si estamos en el directorio del proyecto, copiar de ahí
-# Si no, clonar o copiar desde otra ubicación
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Copiar archivos del proyecto
 cp -r $SCRIPT_DIR/server $APP_DIR/
 cp -r $SCRIPT_DIR/client $APP_DIR/
-cp -r $SCRIPT_DIR/node_modules $APP_DIR/ 2>/dev/null || true
 
 # Copiar archivos de configuración
-cp $SCRIPT_DIR/.env.example $APP_DIR/.env
-
-chown -R inventario:inventario $APP_DIR
+cp $SCRIPT_DIR/.env.example $APP_DIR/.env 2>/dev/null || true
+cp $SCRIPT_DIR/server/.env.example $APP_DIR/server/.env 2>/dev/null || true
 
 echo -e "${GREEN}Archivos copiados${NC}"
 
 # ============================================
 # 5. INSTALAR DEPENDENCIAS NODE.JS
 # ============================================
-echo -e "${YELLOW}[5/8] Instalando dependencias Node.js...${NC}"
+echo -e "${YELLOW}[5/10] Instalando dependencias Node.js...${NC}"
 
-cd $APP_DIR
-
-# Instalar dependencias del workspace raíz
-npm install --legacy-peer-deps 2>/dev/null || true
-
-# Instalar dependencias del server
 cd $APP_DIR/server
-npm install --production
+
+# Instalar TypeScript globalmente
+npm install -g typescript
+
+# Instalar dependencias
+npm install
+
+# Fix: Asegurar Prisma 5.x (compatible)
+npm install @prisma/client@5.22.0 prisma@5.22.0 --save
 
 # Generar Prisma client
-cd $APP_DIR/server
 npx prisma generate
 
 # Build del server
 npm run build
 
-# Instalar dependencias del client
+# Client
 cd $APP_DIR/client
 npm install
 
@@ -143,20 +132,43 @@ npm run build
 echo -e "${GREEN}Node.js configurado${NC}"
 
 # ============================================
-# 6. CONFIGURAR BASE DE DATOS
+# 6. CONFIGURAR VARIABLES DE ENTORNO
 # ============================================
-echo -e "${YELLOW}[6/8] Configurando base de datos...${NC}"
+echo -e "${YELLOW}[6/10] Configurando variables de entorno...${NC}"
 
 cd $APP_DIR/server
 
-# Configurar ruta de base de datos
-sed -i "s|DATABASE_URL=.*|DATABASE_URL=\"file:$DATA_DIR/prisma/dev.db\"|" $APP_DIR/.env
+# Configurar .env
+cat > $APP_DIR/server/.env << 'EOF'
+NODE_ENV=production
+PORT=3001
+DATABASE_URL="file:/var/lib/inventario-almo/prisma/dev.db"
+JWT_SECRET=inventario-almo-secret-key-production-2024
+JWT_EXPIRES_IN=24h
+CORS_ORIGIN=*
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+AUTH_RATE_LIMIT_MAX=5
+EOF
+
+chmod 600 $APP_DIR/server/.env
+chown -R $(whoami):$(whoami) $APP_DIR/server/.env
+
+echo -e "${GREEN}Variables de entorno configuradas${NC}"
+
+# ============================================
+# 7. CONFIGURAR BASE DE DATOS
+# ============================================
+echo -e "${YELLOW}[7/10] Configurando base de datos...${NC}"
+
+cd $APP_DIR/server
 
 # Generar y aplicar migraciones
 npx prisma db push
 
-# Crear usuario admin por defecto
+# Crear usuario admin
 echo -e "${YELLOW}Creando usuario administrador...${NC}"
+
 node -e "
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
@@ -166,9 +178,10 @@ const prisma = new PrismaClient();
 async function main() {
   const hashedPassword = await bcrypt.hash('Admin123', 10);
   
+  // Crear o actualizar usuario
   const user = await prisma.user.upsert({
     where: { email: 'jorge.canel@grupoalmo.com' },
-    update: {},
+    update: { password: hashedPassword, nombre: 'Jorge Canel', rol: 'admin' },
     create: {
       email: 'jorge.canel@grupoalmo.com',
       password: hashedPassword,
@@ -177,27 +190,25 @@ async function main() {
     }
   });
   
-  console.log('Usuario admin creado:', user.email);
+  console.log('Usuario admin creado/actualizado:', user.email);
 }
 
 main()
-  .catch(e => console.error(e))
+  .catch(e => { console.error('Error:', e.message); process.exit(1); })
   .finally(() => prisma.\$disconnect());
 "
-
-chown -R inventario:inventario $DATA_DIR
 
 echo -e "${GREEN}Base de datos configurada${NC}"
 
 # ============================================
-# 7. CONFIGURAR PM2 (GESTOR DE PROCESOS)
+# 8. INSTALAR Y CONFIGURAR PM2
 # ============================================
-echo -e "${YELLOW}[7/8] Configurando PM2...${NC}"
+echo -e "${YELLOW}[8/10] Configurando PM2...${NC}"
 
 # Instalar PM2 globalmente
 npm install -g pm2
 
-# Crear archivo de configuración PM2
+# Crear archivo de configuración PM2 con variables embebidas
 cat > $APP_DIR/ecosystem.config.js << 'EOF'
 module.exports = {
   apps: [
@@ -209,7 +220,14 @@ module.exports = {
       exec_mode: 'cluster',
       env: {
         NODE_ENV: 'production',
-        PORT: 3001
+        PORT: 3001,
+        DATABASE_URL: 'file:/var/lib/inventario-almo/prisma/dev.db',
+        JWT_SECRET: 'inventario-almo-secret-key-production-2024',
+        JWT_EXPIRES_IN: '24h',
+        CORS_ORIGIN: '*',
+        RATE_LIMIT_WINDOW_MS: '900000',
+        RATE_LIMIT_MAX_REQUESTS: '100',
+        AUTH_RATE_LIMIT_MAX: '5'
       },
       error_file: '/var/log/inventario-almo/backend-error.log',
       out_file: '/var/log/inventario-almo/backend-out.log',
@@ -225,19 +243,17 @@ EOF
 
 # Iniciar con PM2
 cd $APP_DIR
-chown inventario:inventario $APP_DIR/ecosystem.config.js
-su - inventario -c "cd $APP_DIR && pm2 start ecosystem.config.js"
+pm2 start ecosystem.config.js
 
-# Configurar inicio automático
-pm2 startup
+# Guardar configuración
 pm2 save
 
 echo -e "${GREEN}PM2 configurado${NC}"
 
 # ============================================
-# 8. CONFIGURAR NGINX
+# 9. CONFIGURAR NGINX
 # ============================================
-echo -e "${YELLOW}[8/8] Configurando Nginx...${NC}"
+echo -e "${YELLOW}[9/10] Configurando Nginx...${NC}"
 
 # Configurar nginx
 cat > /etc/nginx/sites-available/inventario-almo << 'EOF'
@@ -245,20 +261,17 @@ server {
     listen 80;
     server_name _;
 
-    # Archivos estáticos del frontend
     location / {
         root /opt/inventario-almo/client/dist;
         index index.html;
         try_files $uri $uri/ /index.html;
 
-        # Cache para archivos estáticos
         location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
             expires 1y;
             add_header Cache-Control "public, immutable";
         }
     }
 
-    # API del backend
     location /api/ {
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
@@ -276,7 +289,6 @@ server {
         proxy_read_timeout 60s;
     }
 
-    # WebSocket (si es necesario)
     location /ws/ {
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
@@ -291,26 +303,39 @@ EOF
 
 # Habilitar sitio
 ln -sf /etc/nginx/sites-available/inventario-almo /etc/nginx/sites-enabled/
-nginx -t
-systemctl reload nginx
+nginx -t && systemctl reload nginx
 
 echo -e "${GREEN}Nginx configurado${NC}"
 
 # ============================================
-# RESUMEN
+# 10. VERIFICAR INSTALACIÓN
 # ============================================
+echo -e "${YELLOW}[10/10] Verificando instalación...${NC}"
+
+sleep 2
+
+# Probar health
+HEALTH=$(curl -s http://127.0.0.1:3001/api/health 2>/dev/null || echo "FAILED")
+
+if [[ "$HEALTH" == *"ok"* ]]; then
+    echo -e "${GREEN}✅ Backend funcionando correctamente${NC}"
+else
+    echo -e "${YELLOW}⚠️ Backend no responde, verificando logs...${NC}"
+    pm2 logs inventario-backend --lines 10 --nostream
+fi
+
 echo ""
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  INSTALACIÓN COMPLETADA${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
-echo -e "Aplicación instalada en: ${YELLOW}$APP_DIR${NC}"
-echo -e "Datos en: ${YELLOW}$DATA_DIR${NC}"
-echo -e "Logs en: ${YELLOW}$LOG_DIR${NC}"
+echo -e "Aplicación: ${YELLOW}$APP_DIR${NC}"
+echo -e "Datos: ${YELLOW}$DATA_DIR${NC}"
+echo -e "Logs: ${YELLOW}$LOG_DIR${NC}"
 echo ""
 echo -e "Acceso: ${YELLOW}http://TU_IP_O_DOMINIO${NC}"
 echo ""
-echo -e "Credenciales por defecto:"
+echo -e "Credenciales:"
 echo -e "  Email: ${YELLOW}jorge.canel@grupoalmo.com${NC}"
 echo -e "  Password: ${YELLOW}Admin123${NC}"
 echo ""
