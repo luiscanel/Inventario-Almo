@@ -19,6 +19,10 @@ import {
   Globe,
   Layers
 } from 'lucide-react'
+import { StatCard as ModernStatCard, BarChartCard, ModernTooltip } from '@/components/charts/ModernCharts'
+
+const StatCard = ModernStatCard
+const CustomTooltip = ModernTooltip
 
 interface ResourceStats {
   totalVMs: number
@@ -36,35 +40,6 @@ interface ResourceStats {
   topMemoria: any[]
   topDisco: any[]
 }
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white px-3 py-2 shadow-lg rounded-lg border">
-        <p className="font-medium">{label}</p>
-        <p className="text-sm text-gray-600">{payload[0].value}</p>
-      </div>
-    )
-  }
-  return null
-}
-
-const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
-  <Card className="overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1">
-    <CardContent className="p-0">
-      <div className="flex items-center">
-        <div className={`${color} p-4 flex items-center justify-center`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        <div className="p-4 flex-1">
-          <p className="text-sm text-gray-500">{title}</p>
-          <p className="text-2xl font-bold">{value}</p>
-          {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-)
 
 export default function DashboardRecursos() {
   const [stats, setStats] = useState<ResourceStats | null>(null)
@@ -138,51 +113,18 @@ export default function DashboardRecursos() {
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Distribución por CPU */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Cpu className="w-5 h-5 text-purple-500" />
-              Distribución por CPU
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.porCpuRango || []}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis dataKey="range" tick={{ fontSize: 11 }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Distribución por Memoria */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Zap className="w-5 h-5 text-amber-500" />
-              Distribución por Memoria
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.porMemoriaRango || []}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis dataKey="range" tick={{ fontSize: 11 }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        <BarChartCard 
+          data={stats?.porCpuRango?.map((r: any) => ({ name: r.range, count: r.count })) || []} 
+          title="Distribución por CPU" 
+          icon={Cpu}
+          colorClass="bg-gradient-to-br from-violet-500 to-purple-500"
+        />
+        <BarChartCard 
+          data={stats?.porMemoriaRango?.map((r: any) => ({ name: r.range, count: r.count })) || []} 
+          title="Distribución por Memoria" 
+          icon={Zap}
+          colorClass="bg-gradient-to-br from-amber-500 to-orange-500"
+        />
       </div>
 
       {/* Charts Row 2 - Por Ambiente */}
@@ -199,11 +141,17 @@ export default function DashboardRecursos() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats?.porAmbiente || []}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis dataKey="ambiente" tick={{ fontSize: 11 }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="cpu" fill="#3b82f6" radius={[4, 4, 0, 0]} name="CPU Cores" />
+                  <defs>
+                    <linearGradient id="grad-cpu-amb" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#6366f1" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="ambiente" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                  <Bar dataKey="cpu" fill="url(#grad-cpu-amb)" radius={[6, 6, 0, 0]} name="CPU Cores" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -222,11 +170,17 @@ export default function DashboardRecursos() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats?.porAmbiente || []}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis dataKey="ambiente" tick={{ fontSize: 11 }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="memoria" fill="#22c55e" radius={[4, 4, 0, 0]} name="Memoria GB" />
+                  <defs>
+                    <linearGradient id="grad-mem-amb" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22c55e" />
+                      <stop offset="100%" stopColor="#10b981" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="ambiente" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                  <Bar dataKey="memoria" fill="url(#grad-mem-amb)" radius={[6, 6, 0, 0]} name="Memoria GB" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

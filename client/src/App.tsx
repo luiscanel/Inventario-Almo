@@ -11,7 +11,6 @@ import DashboardResponsables from './pages/DashboardResponsables'
 import Inventory from './pages/Inventory'
 import InventarioFisico from './pages/InventarioFisico'
 import Reports from './pages/Reports'
-import Email from './pages/Email'
 import Admin from './pages/Admin'
 import Layout from './components/layout/Layout'
 
@@ -42,7 +41,6 @@ function App() {
           <Route path="inventory" element={<Inventory />} />
           <Route path="inventario-fisico" element={<InventarioFisico />} />
           <Route path="reports" element={<Reports />} />
-          <Route path="email" element={<Email />} />
           <Route path="admin" element={<Admin />} />
         </Route>
       </Routes>

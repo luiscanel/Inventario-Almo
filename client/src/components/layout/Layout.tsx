@@ -6,7 +6,6 @@ import {
   Server, 
   HardDrive,
   FileText, 
-  Mail, 
   Users, 
   LogOut,
   Menu,
@@ -30,7 +29,6 @@ const modulos = [
   { to: '/inventario-fisico-detalle', icon: HardDrive, label: 'Inv. Físico Detalle', permiso: { modulo: 'inventario_fisico', accion: 'ver' } },
   { to: '/responsables', icon: User, label: 'Responsables', permiso: null },
   { to: '/reports', icon: FileText, label: 'Informes', permiso: { modulo: 'informes', accion: 'ver' } },
-  { to: '/email', icon: Mail, label: 'Email', permiso: { modulo: 'email', accion: 'ver' } },
   { to: '/admin', icon: Users, label: 'Admin', permiso: { modulo: 'admin', accion: 'ver' } },
 ]
 
@@ -98,27 +96,7 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium">
-                {user?.nombre?.charAt(0).toUpperCase() || 'U'}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.nombre || 'Usuario'}</p>
-              <p className="text-xs text-slate-400 truncate">{user?.email || 'email@grupoalmo.com'}</p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-slate-400 hover:text-white hover:bg-slate-800"
-            onClick={handleLogout}
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Cerrar Sesión
-          </Button>
-        </div>
+
       </aside>
 
       <div className="lg:ml-64">
@@ -132,12 +110,26 @@ export default function Layout() {
           
           <div className="flex-1 lg:flex-none" />
           
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:block text-sm text-gray-600">
-              <span className="font-medium">{user?.nombre}</span>
-              <span className="text-gray-400 ml-2">•</span>
-              <span className="ml-2 text-blue-600 capitalize">{user?.rol}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
+              <div className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-xs font-medium text-white">
+                  {user?.nombre?.charAt(0).toUpperCase() || 'U'}
+                </span>
+              </div>
+              <div className="hidden sm:block">
+                <p className="text-sm font-medium text-gray-800">{user?.nombre || 'Usuario'}</p>
+                <p className="text-xs text-gray-500 capitalize">{user?.rol || 'Usuario'}</p>
+              </div>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full px-3"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </header>
 

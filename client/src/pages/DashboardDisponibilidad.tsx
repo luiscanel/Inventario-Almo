@@ -8,11 +8,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend
+  ResponsiveContainer
 } from 'recharts'
 import {
   Server,
@@ -24,15 +20,10 @@ import {
   Globe,
   Layers
 } from 'lucide-react'
+import { StatCard as ModernStatCard, DonutChartCard, BarChartCard, ModernTooltip } from '@/components/charts/ModernCharts'
 
-const COLORS_ESTADO = {
-  'Activo': '#22c55e',
-  'Inactivo': '#ef4444',
-  'Mantenimiento': '#f59e0b',
-  'Decomisionado': '#6b7280'
-}
-
-const COLORS = ['#22c55e', '#ef4444', '#f59e0b', '#6b7280', '#3b82f6', '#8b5cf6', '#06b6d4']
+const StatCard = ModernStatCard
+const CustomTooltip = ModernTooltip
 
 interface AvailabilityStats {
   totalVMs: number
@@ -69,35 +60,6 @@ interface AvailabilityStats {
   }[]
   timeline: { periodo: string; count: number }[]
 }
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white px-3 py-2 shadow-lg rounded-lg border">
-        <p className="font-medium">{label}</p>
-        <p className="text-sm text-gray-600">{payload[0].value} VMs</p>
-      </div>
-    )
-  }
-  return null
-}
-
-const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
-  <Card className="overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1">
-    <CardContent className="p-0">
-      <div className="flex items-center">
-        <div className={`${color} p-4 flex items-center justify-center`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        <div className="p-4 flex-1">
-          <p className="text-sm text-gray-500">{title}</p>
-          <p className="text-2xl font-bold">{value}</p>
-          {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-)
 
 export default function DashboardDisponibilidad() {
   const [stats, setStats] = useState<AvailabilityStats | null>(null)
@@ -201,85 +163,26 @@ export default function DashboardDisponibilidad() {
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Estado Pie Chart */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Activity className="w-5 h-5 text-green-500" />
-              Estado de VMs
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={estadoData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="count"
-                    nameKey="name"
-                  >
-                    {estadoData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS_ESTADO[entry.name as keyof typeof COLORS_ESTADO] || COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend verticalAlign="bottom" height={36} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Por Ambiente */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Layers className="w-5 h-5 text-purple-500" />
-              Por Ambiente
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={(stats?.porAmbiente || []).map(e => ({ ambiente: e.name, count: e.count }))}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis dataKey="ambiente" tick={{ fontSize: 11 }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Por País */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Globe className="w-5 h-5 text-cyan-500" />
-              Por País
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={(stats?.porPais || []).slice(0, 8).map(e => ({ pais: e.name, count: e.count }))}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis dataKey="pais" tick={{ fontSize: 10 }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        <DonutChartCard 
+          data={estadoData} 
+          colors={['#22c55e', '#ef4444', '#f59e0b', '#6b7280']} 
+          title="Estado de VMs" 
+          icon={Activity}
+          colorClass="bg-gradient-to-br from-green-500 to-emerald-500"
+          dataKey="count"
+        />
+        <BarChartCard 
+          data={(stats?.porAmbiente || []).map((e: any) => ({ name: e.name, count: e.count }))} 
+          title="Por Ambiente" 
+          icon={Layers}
+          colorClass="bg-gradient-to-br from-violet-500 to-purple-500"
+        />
+        <BarChartCard 
+          data={(stats?.porPais || []).map((e: any) => ({ name: e.name, count: e.count }))} 
+          title="Por País" 
+          icon={Globe}
+          colorClass="bg-gradient-to-br from-cyan-500 to-blue-500"
+        />
       </div>
 
       {/* Timeline */}
@@ -294,11 +197,17 @@ export default function DashboardDisponibilidad() {
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats?.timeline || []}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                <XAxis dataKey="periodo" tick={{ fontSize: 11 }} tickLine={false} />
-                <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <defs>
+                  <linearGradient id="grad-timeline" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="periodo" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                <Bar dataKey="count" fill="url(#grad-timeline)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

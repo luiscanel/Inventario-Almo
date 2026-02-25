@@ -25,15 +25,10 @@ import {
   Calendar,
   Network
 } from 'lucide-react'
+import { StatCard as ModernStatCard, DonutChartCard, BarChartCard, ModernTooltip } from '@/components/charts/ModernCharts'
 
-const COLORS_ESTADO = {
-  'En uso': '#22c55e',
-  'Disponible': '#3b82f6',
-  'Dañado': '#ef4444',
-  'Dado de baja': '#6b7280'
-}
-
-const COLORS = ['#3b82f6', '#8b5cf6', '#06b6d4', '#f59e0b', '#22c55e', '#ef4444', '#ec4899', '#14b8a6']
+const StatCard = ModernStatCard
+const CustomTooltip = ModernTooltip
 
 interface PhysicalStats {
   totalEquipos: number
@@ -66,35 +61,6 @@ interface PhysicalStats {
   conIlo: number
   sinIlo: number
 }
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white px-3 py-2 shadow-lg rounded-lg border">
-        <p className="font-medium">{label}</p>
-        <p className="text-sm text-gray-600">{payload[0].value} equipos</p>
-      </div>
-    )
-  }
-  return null
-}
-
-const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
-  <Card className="overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1">
-    <CardContent className="p-0">
-      <div className="flex items-center">
-        <div className={`${color} p-4 flex items-center justify-center`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        <div className="p-4 flex-1">
-          <p className="text-sm text-gray-500">{title}</p>
-          <p className="text-2xl font-bold">{value}</p>
-          {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-)
 
 export default function DashboardInventarioFisico() {
   const [stats, setStats] = useState<PhysicalStats | null>(null)
@@ -187,61 +153,20 @@ export default function DashboardInventarioFisico() {
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Estado Pie Chart */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              Estado de Equipos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={estadoData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {estadoData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS_ESTADO[entry.name as keyof typeof COLORS_ESTADO] || COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend verticalAlign="bottom" height={36} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Por Categoría */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Package className="w-5 h-5 text-purple-500" />
-              Por Categoría
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.porCategoria || []} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="categoria" type="category" width={100} tick={{ fontSize: 10 }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        <DonutChartCard 
+          data={estadoData} 
+          colors={['#22c55e', '#3b82f6', '#ef4444', '#6b7280']} 
+          title="Estado de Equipos" 
+          icon={CheckCircle}
+          colorClass="bg-gradient-to-br from-green-500 to-emerald-500"
+        />
+        <BarChartCard 
+          data={stats?.porCategoria?.map((c: any) => ({ name: c.categoria, count: c.count })) || []} 
+          title="Por Categoría" 
+          icon={Package}
+          colorClass="bg-gradient-to-br from-violet-500 to-purple-500"
+          layout="vertical"
+        />
 
         {/* Por País */}
         <Card>
@@ -255,11 +180,17 @@ export default function DashboardInventarioFisico() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats?.porPais?.slice(0, 8) || []}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis dataKey="pais" tick={{ fontSize: 10 }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                  <defs>
+                    <linearGradient id="grad-fisico-pais" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#06b6d4" />
+                      <stop offset="100%" stopColor="#0891b2" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="pais" tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                  <Bar dataKey="count" fill="url(#grad-fisico-pais)" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -281,11 +212,17 @@ export default function DashboardInventarioFisico() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats?.porMarca?.slice(0, 10) || []}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis dataKey="marca" tick={{ fontSize: 10 }} tickLine={false} angle={-45} textAnchor="end" height={80} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  <defs>
+                    <linearGradient id="grad-fisico-marca" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#f59e0b" />
+                      <stop offset="100%" stopColor="#d97706" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="marca" tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} angle={-45} textAnchor="end" height={80} />
+                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                  <Bar dataKey="count" fill="url(#grad-fisico-marca)" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -304,20 +241,30 @@ export default function DashboardInventarioFisico() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
+                  <defs>
+                    <linearGradient id="grad-ip-1" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#22c55e" />
+                      <stop offset="100%" stopColor="#10b981" />
+                    </linearGradient>
+                    <linearGradient id="grad-ip-2" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#ef4444" />
+                      <stop offset="100%" stopColor="#dc2626" />
+                    </linearGradient>
+                  </defs>
                   <Pie
                     data={ipData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={3}
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={4}
                     dataKey="value"
                   >
-                    <Cell fill="#22c55e" />
-                    <Cell fill="#ef4444" />
+                    <Cell fill="url(#grad-ip-1)" />
+                    <Cell fill="url(#grad-ip-2)" />
                   </Pie>
-                  <Tooltip />
-                  <Legend verticalAlign="bottom" height={36} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" iconSize={8} />
                 </PieChart>
               </ResponsiveContainer>
             </div>

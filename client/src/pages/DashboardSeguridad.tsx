@@ -2,19 +2,6 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getDashboardSecurity } from '@/lib/api'
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend
-} from 'recharts'
-import {
   Shield,
   ShieldOff,
   AlertTriangle,
@@ -24,6 +11,7 @@ import {
   Monitor,
   CheckCircle
 } from 'lucide-react'
+import { StatCard, DonutChartCard, BarChartCard } from '@/components/charts/ModernCharts'
 
 interface SecurityStats {
   totalVMs: number
@@ -45,34 +33,7 @@ interface SecurityStats {
   porPaisYSistema?: { pais: string; sistemas: { name: string; count: number }[] }[]
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white px-3 py-2 shadow-lg rounded-lg border">
-        <p className="font-medium">{label}</p>
-        <p className="text-sm text-gray-600">{payload[0].value} servidores</p>
-      </div>
-    )
-  }
-  return null
-}
 
-const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
-  <Card className="overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1">
-    <CardContent className="p-0">
-      <div className="flex items-center">
-        <div className={`${color} p-4 flex items-center justify-center`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        <div className="p-4 flex-1">
-          <p className="text-sm text-gray-500">{title}</p>
-          <p className="text-3xl font-bold">{value}</p>
-          {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-)
 
 export default function DashboardSeguridad() {
   const [stats, setStats] = useState<SecurityStats | null>(null)
@@ -167,132 +128,43 @@ export default function DashboardSeguridad() {
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Antivirus Coverage */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Shield className="w-5 h-5 text-green-500" />
-              Cobertura Antivirus
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={antivirusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    <Cell fill="#22c55e" />
-                    <Cell fill="#ef4444" />
-                  </Pie>
-                  <Tooltip />
-                  <Legend verticalAlign="bottom" height={36} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Por Antivirus */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Shield className="w-5 h-5 text-blue-500" />
-              Distribución por Antivirus
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.porAntivirus?.slice(0, 6) || []} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="antivirus" type="category" width={100} tick={{ fontSize: 10 }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Arquitecturas */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Cpu className="w-5 h-5 text-purple-500" />
-              Arquitecturas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.porArquitectura || []}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis dataKey="arquitectura" tick={{ fontSize: 10 }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        <DonutChartCard 
+          data={antivirusData} 
+          colors={['#22c55e', '#ef4444']} 
+          title="Cobertura Antivirus" 
+          icon={Shield}
+          colorClass="bg-gradient-to-br from-green-500 to-emerald-500"
+        />
+        <BarChartCard 
+          data={stats?.porAntivirus?.slice(0, 6)?.map((a: any) => ({ name: a.antivirus, count: a.count })) || []} 
+          title="Distribución por Antivirus" 
+          icon={Shield}
+          colorClass="bg-gradient-to-br from-blue-500 to-cyan-500"
+          layout="vertical"
+        />
+        <BarChartCard 
+          data={stats?.porArquitectura?.map((a: any) => ({ name: a.arquitectura, count: a.count })) || []} 
+          title="Arquitecturas" 
+          icon={Cpu}
+          colorClass="bg-gradient-to-br from-violet-500 to-purple-500"
+        />
       </div>
 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Por Sistema Operativo */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Monitor className="w-5 h-5 text-indigo-500" />
-              Por Sistema Operativo
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.porSO?.slice(0, 10) || []}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis dataKey="sistemaOperativo" tick={{ fontSize: 10 }} tickLine={false} angle={-45} textAnchor="end" height={80} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* SO con Versiones */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Globe className="w-5 h-5 text-cyan-500" />
-              SO con Versiones
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72 overflow-y-auto">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.porSO?.slice(0, 12) || []} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="name" type="category" width={180} tick={{ fontSize: 9 }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        <BarChartCard 
+          data={stats?.porSO?.slice(0, 10)?.map((s: any) => ({ name: s.sistemaOperativo, count: s.count })) || []} 
+          title="Por Sistema Operativo" 
+          icon={Monitor}
+          colorClass="bg-gradient-to-br from-indigo-500 to-purple-500"
+        />
+        <BarChartCard 
+          data={stats?.porSO?.slice(0, 12)?.map((s: any) => ({ name: s.name, count: s.count })) || []} 
+          title="SO con Versiones" 
+          icon={Globe}
+          colorClass="bg-gradient-to-br from-cyan-500 to-blue-500"
+          layout="vertical"
+        />
       </div>
 
       {/* VMs Sin Antivirus - Critical Alert */}

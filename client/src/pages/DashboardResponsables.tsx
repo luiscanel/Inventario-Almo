@@ -2,24 +2,15 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getDashboardResponsables } from '@/lib/api'
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts'
-import {
   User,
   Server,
   HardDrive,
   CheckCircle,
   Layers
 } from 'lucide-react'
+import { StatCard as ModernStatCard, DonutChartCard, BarChartCard } from '@/components/charts/ModernCharts'
+
+const StatCard = ModernStatCard
 
 interface ResponsableStats {
   totalVMs: number
@@ -40,37 +31,6 @@ interface ResponsableStats {
   }[]
   listaResponsables: string[]
 }
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white px-3 py-2 shadow-lg rounded-lg border">
-        <p className="font-medium">{label}</p>
-        {payload.map((p: any, idx: number) => (
-          <p key={idx} className="text-sm text-gray-600">{p.name}: {p.value}</p>
-        ))}
-      </div>
-    )
-  }
-  return null
-}
-
-const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
-  <Card className="overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1">
-    <CardContent className="p-0">
-      <div className="flex items-center">
-        <div className={`${color} p-4 flex items-center justify-center`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        <div className="p-4 flex-1">
-          <p className="text-sm text-gray-500">{title}</p>
-          <p className="text-2xl font-bold">{value}</p>
-          {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-)
 
 export default function DashboardResponsables() {
   const [stats, setStats] = useState<ResponsableStats | null>(null)
@@ -159,60 +119,19 @@ export default function DashboardResponsables() {
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Cobertura VMs */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              Asignación de VMs
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={coverageData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    <Cell fill="#22c55e" />
-                    <Cell fill="#ef4444" />
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Distribución por Responsable */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="w-5 h-5 text-purple-500" />
-              Distribución por Responsable
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={responsableData}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} angle={-45} textAnchor="end" height={80} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="VMs" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="Equipos" fill="#8b5cf6" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        <DonutChartCard 
+          data={coverageData} 
+          colors={['#22c55e', '#ef4444']} 
+          title="Asignación de VMs" 
+          icon={CheckCircle}
+          colorClass="bg-gradient-to-br from-green-500 to-emerald-500"
+        />
+        <BarChartCard 
+          data={responsableData} 
+          title="Distribución por Responsable" 
+          icon={User}
+          colorClass="bg-gradient-to-br from-violet-500 to-purple-500"
+        />
       </div>
 
       {/* Detalle por Responsable */}
