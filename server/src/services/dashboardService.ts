@@ -56,6 +56,24 @@ function parseToNumber(value: any): number {
   return 0
 }
 
+// Función helper para agrupar por clave con costo acumulado
+function groupByWithCost<T extends Record<string, any>>(
+  items: T[],
+  key: keyof T,
+  costKey: keyof T
+): { name: string; count: number; costo: string }[] {
+  const result: Record<string, { count: number; costo: number }> = {}
+  items.forEach(item => {
+    const name = String(item[key] || 'No especificado')
+    if (!result[name]) result[name] = { count: 0, costo: 0 }
+    result[name].count++
+    result[name].costo += parseToNumber(item[costKey])
+  })
+  return Object.entries(result)
+    .sort((a, b) => b[1].costo - a[1].costo)
+    .map(([name, v]) => ({ name, count: v.count, costo: v.costo.toFixed(2) }))
+}
+
 // Servicio de Seguridad
 export async function getSecurityStats() {
   const servidores = await prisma.servidor.findMany()
@@ -587,92 +605,22 @@ export async function getResponsablesStats() {
 export async function getCloudStats() {
   const cloudItems = await prisma.inventarioCloud.findMany()
 
-  // Por proveedor (nube) CON COSTO
-  const nubeCosto: Record<string, {count: number, costo: number}> = {}
-  cloudItems.forEach(item => {
-    const n = item.nube || 'No especificado'
-    if (!nubeCosto[n]) nubeCosto[n] = { count: 0, costo: 0 }
-    nubeCosto[n].count++
-    nubeCosto[n].costo += parseFloat(item.costoUsd) || 0
-  })
-  const porNube = Object.entries(nubeCosto)
-    .sort((a, b) => b[1].costo - a[1].costo)
-    .map(([nube, v]) => ({ nube, count: v.count, costo: v.costo.toFixed(2) }))
+  // Agrupaciones con costo usando helper
+  const porNube = groupByWithCost(cloudItems, 'nube', 'costoUsd')
+  const porTenant = groupByWithCost(cloudItems, 'tenant', 'costoUsd').slice(0, 10)
+  const porModoUso = groupByWithCost(cloudItems, 'modoUso', 'costoUsd')
+  const porSO = groupByWithCost(cloudItems, 'sistemaOperativo', 'costoUsd').slice(0, 10)
+  const porResponsable = groupByWithCost(cloudItems, 'responsable', 'costoUsd').slice(0, 10)
 
-  // Por tenant CON COSTO
-  const tenantCosto: Record<string, {count: number, costo: number}> = {}
-  cloudItems.forEach(item => {
-    const t = item.tenant || 'No especificado'
-    if (!tenantCosto[t]) tenantCosto[t] = { count: 0, costo: 0 }
-    tenantCosto[t].count++
-    tenantCosto[t].costo += parseFloat(item.costoUsd) || 0
-  })
-  const porTenant = Object.entries(tenantCosto)
-    .sort((a, b) => b[1].costo - a[1].costo)
-    .slice(0, 10)
-    .map(([tenant, v]) => ({ tenant, count: v.count, costo: v.costo.toFixed(2) }))
+  // Agrupaciones sin costo
+  const porInstanceType = toSortedArray(groupBy(cloudItems, 'instanceType')).slice(0, 10)
+    .map(item => ({ instanceType: item.name, count: item.count }))
+  const porService = toSortedArray(groupBy(cloudItems, 'service')).slice(0, 10)
+    .map(item => ({ service: item.name, count: item.count }))
 
-  // Por modo de uso CON COSTO
-  const modoCosto: Record<string, {count: number, costo: number}> = {}
-  cloudItems.forEach(item => {
-    const m = item.modoUso || 'No especificado'
-    if (!modoCosto[m]) modoCosto[m] = { count: 0, costo: 0 }
-    modoCosto[m].count++
-    modoCosto[m].costo += parseFloat(item.costoUsd) || 0
-  })
-  const porModoUso = Object.entries(modoCosto)
-    .sort((a, b) => b[1].costo - a[1].costo)
-    .map(([modoUso, v]) => ({ modoUso, count: v.count, costo: v.costo.toFixed(2) }))
-
-  // Por instance type (tamaño)
-  const typeCounts = groupBy(cloudItems, 'instanceType')
-  const porInstanceType = toSortedArray(typeCounts).slice(0, 10).map(item => ({
-    instanceType: item.name || 'No especificado',
-    count: item.count
-  }))
-
-  // Por service (aplicación)
-  const serviceCounts = groupBy(cloudItems, 'service')
-  const porService = toSortedArray(serviceCounts).slice(0, 10).map(item => ({
-    service: item.name || 'No especificado',
-    count: item.count
-  }))
-
-  // Calcular costo total
-  const costoTotal = cloudItems.reduce((acc, item) => {
-    return acc + parseToNumber(item.costoUsd)
-  }, 0)
-
-  // Total CPUs
-  const totalCpu = cloudItems.reduce((acc, item) => {
-    return acc + (item.cpu || 0)
-  }, 0)
-
-  // Por sistema operativo CON COSTO
-  const soCosto: Record<string, {count: number, costo: number}> = {}
-  cloudItems.forEach(item => {
-    const so = item.sistemaOperativo || 'No especificado'
-    if (!soCosto[so]) soCosto[so] = { count: 0, costo: 0 }
-    soCosto[so].count++
-    soCosto[so].costo += parseFloat(item.costoUsd) || 0
-  })
-  const porSO = Object.entries(soCosto)
-    .sort((a, b) => b[1].costo - a[1].costo)
-    .slice(0, 10)
-    .map(([so, v]) => ({ so, count: v.count, costo: v.costo.toFixed(2) }))
-
-  // Por responsable CON COSTO
-  const respCosto: Record<string, {count: number, costo: number}> = {}
-  cloudItems.forEach(item => {
-    const r = item.responsable || 'No especificado'
-    if (!respCosto[r]) respCosto[r] = { count: 0, costo: 0 }
-    respCosto[r].count++
-    respCosto[r].costo += parseFloat(item.costoUsd) || 0
-  })
-  const porResponsable = Object.entries(respCosto)
-    .sort((a, b) => b[1].costo - a[1].costo)
-    .slice(0, 10)
-    .map(([responsable, v]) => ({ responsable, count: v.count, costo: v.costo.toFixed(2) }))
+  // Métricas calculadas
+  const costoTotal = cloudItems.reduce((acc, item) => acc + parseToNumber(item.costoUsd), 0)
+  const totalCpu = cloudItems.reduce((acc, item) => acc + (item.cpu || 0), 0)
 
   // Linux vs Windows
   const linuxCount = cloudItems.filter(i => 
@@ -699,6 +647,6 @@ export async function getCloudStats() {
     linuxCount,
     windowsCount,
     conResponsable,
-    porcentajeConResponsable: cloudItems.length > 0 ? Math.round((conResponsable / cloudItems.length) * 100) : 0
+    porcentajeConResponsable: calculatePercentage(conResponsable, cloudItems.length)
   }
 }
