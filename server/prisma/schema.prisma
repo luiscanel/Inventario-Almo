@@ -28,6 +28,7 @@ model Rol {
   descripcion String?
   esBase      Boolean      @default(false) // true para admin y viewer
   roles       RolModulo[]  // Relación muchos a muchos con módulos
+  permisos    Permiso[]    // Permisos asignados al rol
   usuarios    UsuarioRol[]
   createdAt   DateTime     @default(now())
 }
@@ -48,6 +49,8 @@ model Permiso {
   moduloId Int
   accion   String  // ver, crear, editar, eliminar, exportar
   modulo   Modulo  @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  rol      Rol?    @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  rolId    Int?
 
   @@unique([moduloId, accion])
 }
