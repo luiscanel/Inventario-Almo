@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../prisma/index'
 import { authMiddleware } from '../middleware/auth'
+import { getCloudStats } from '../services/dashboardService'
 
 const router = Router()
 
@@ -95,6 +96,9 @@ router.get('/stats', async (req, res) => {
     })
     const porMarca = Object.entries(marcaCount).map(([marca, count]) => ({ marca, count })).sort((a, b) => b.count - a.count)
 
+    // Stats de Cloud
+    const cloudStats = await getCloudStats()
+
     res.json({
       // VMs
       totalVMs,
@@ -113,7 +117,9 @@ router.get('/stats', async (req, res) => {
       totalFisico,
       porPaisFisico,
       porCategoria,
-      porMarca
+      porMarca,
+      // Cloud
+      ...cloudStats
     })
   } catch (error) {
     console.error('Error:', error)

@@ -95,7 +95,7 @@ export default function InventoryCloud() {
   }
 
   const downloadTemplate = () => {
-    const templateData = [{ "Tenant": "TENANT-01", "Nube": "AWS", "Instance Name": "prod-web-01", "IP Pública": "1.2.3.4", "IP Privada": "10.0.0.1", "Instance Type": "t3.medium", "CPU": 2, "RAM": "4GB", "Storage (GiB)": "50", "Sistema Operativo": "Ubuntu 22.04", "Costo (USD)": "50.00", "Hostname": "ip-10-0-0-1", "Responsable": "Juan Pérez", "Modo de Uso": "Producción", "Service": "web" }]
+    const templateData = [{ "Tenant": "almoseguridad", "Nube": "AWS", "Instance Name": "prod-web-01", "IP Publica": "1.2.3.4", "IP Privada": "10.0.0.1", "Instance Type": "t3.medium", "CPU": 2, "RAM": "4GB", "Storage": "50", "Sistema Operativo": "Ubuntu 22.04", "Costo USD": "50.00", "Hostname": "ip-10-0-0-1", "Responsable": "Juan Pérez", "Modo Uso": "Producción", "Service": "web" }]
     const ws = XLSX.utils.json_to_sheet(templateData)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "InventarioCloud")
@@ -110,25 +110,32 @@ export default function InventoryCloud() {
     try {
       const data = await file.arrayBuffer()
       const workbook = XLSX.read(data)
-      const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]])
-      if (!Array.isArray(jsonData) || jsonData.length === 0) { toast({ variant: "destructive", title: "Error", description: "El archivo está vacío" }); return }
-      const findColumn = (row: any, ...keywords: string[]) => {
-        const rowKeys = Object.keys(row)
-        for (const kw of keywords) {
-          const found = rowKeys.find(k => k.toLowerCase().includes(kw.toLowerCase()))
-          if (found && row[found] !== undefined && row[found] !== null && String(row[found]).trim() !== "") { return String(row[found]).trim() }
-        }
-        return null
-      }
-      const dataToSend = jsonData.map((row: any) => ({
-        tenant: findColumn(row, "tenant"), nube: findColumn(row, "nube", "cloud", "provider"), instanceName: findColumn(row, "instance name", "instance", "name", "vm"),
-        ipPublica: findColumn(row, "ip pública", "public ip", "ippublica", "publicip"), ipPrivada: findColumn(row, "ip privada", "private ip", "ipprivada", "privateip"),
-        instanceType: findColumn(row, "instance type", "type", "instancetype"), cpu: parseInt(String(findColumn(row, "cpu", "vcpu", "v cpu") || "0")) || 0,
-        ram: findColumn(row, "ram", "memory", "memoria"), storageGib: findColumn(row, "storage", "disk", "disco", "storagegib"),
-        sistemaOperativo: findColumn(row, "sistema operativo", "so", "os", "s.o", "operativo"), costoUsd: findColumn(row, "costo", "cost", "usd", "precio"),
-        hostName: findColumn(row, "hostname", "host name", "host"), responsable: findColumn(row, "responsable", "owner", "responsible"),
-        modoUso: findColumn(row, "modo", "use", "usage", "modo de uso"), service: findColumn(row, "service", "servicio")
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][]
+      if (!Array.isArray(jsonData) || jsonData.length < 2) { toast({ variant: "destructive", title: "Error", description: "El archivo está vacío o sin datos" }); return }
+      
+      // Primera fila = headers (ignorar), siguientes = datos
+      console.log('Raw row 1:', JSON.stringify(jsonData[1]))
+      const dataToSend = jsonData.slice(1).filter((row: any[]) => row && row.length > 0).map((row: any[]) => ({
+        tenant: row[0] !== undefined ? String(row[0]).trim() : null,
+        nube: row[1] !== undefined ? String(row[1]).trim() : null,
+        instanceName: row[2] !== undefined ? String(row[2]).trim() : null,
+        ipPublica: row[3] !== undefined ? String(row[3]).trim() : null,
+        ipPrivada: row[4] !== undefined ? String(row[4]).trim() : null,
+        instanceType: row[5] !== undefined ? String(row[5]).trim() : null,
+        cpu: parseInt(String(row[6] || "0").replace(/\s/g, '')) || 0,
+        ram: row[7] !== undefined ? String(row[7]).trim() : null,
+        storageGib: row[8] !== undefined ? String(row[8]).trim() : null,
+        sistemaOperativo: row[9] !== undefined ? String(row[9]).trim() : null,
+        costoUsd: row[10] !== undefined ? String(row[10]).trim() : null,
+        hostName: row[11] !== undefined ? String(row[11]).trim() : null,
+        responsable: row[12] !== undefined ? String(row[12]).trim() : null,
+        modoUso: row[13] !== undefined ? String(row[13]).trim() : null,
+        service: row[14] !== undefined ? String(row[14]).trim() : null
       }))
+      
+      console.log('First item to send:', JSON.stringify(dataToSend[0]))
+      
       const result = await importInventarioCloud(dataToSend)
       toast({ title: result.message || `${result.count} instancias importadas correctamente` })
       loadItems()

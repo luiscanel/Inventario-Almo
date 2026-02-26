@@ -109,12 +109,30 @@ export const inventarioCloudSchema = z.object({
   responsable: z.string().max(255).optional().nullable(),
   modoUso: z.string().max(100).optional().nullable(),
   service: z.string().max(255).optional().nullable(),
+  antivirus: z.string().max(255).optional().nullable(),
 })
 
 export const inventarioCloudUpdateSchema = inventarioCloudSchema.partial()
 
 export const inventarioCloudImportSchema = z.object({
-  items: z.array(z.any())
+  items: z.array(z.object({
+    tenant: z.union([z.string(), z.null()]).optional(),
+    nube: z.union([z.string(), z.null()]).optional(),
+    instanceName: z.union([z.string(), z.null()]).optional(),
+    ipPublica: z.union([z.string(), z.null()]).optional(),
+    ipPrivada: z.union([z.string(), z.null()]).optional(),
+    instanceType: z.union([z.string(), z.null()]).optional(),
+    cpu: z.union([z.number(), z.null()]).optional(),
+    ram: z.union([z.string(), z.null()]).optional(),
+    storageGib: z.union([z.string(), z.null()]).optional(),
+    sistemaOperativo: z.union([z.string(), z.null()]).optional(),
+    costoUsd: z.union([z.string(), z.null()]).optional(),
+    hostName: z.union([z.string(), z.null()]).optional(),
+    responsable: z.union([z.string(), z.null()]).optional(),
+    modoUso: z.union([z.string(), z.null()]).optional(),
+    service: z.union([z.string(), z.null()]).optional(),
+    antivirus: z.union([z.string(), z.null()]).optional(),
+  }).passthrough())
     .min(1, 'Debe haber al menos un item')
     .max(5000, 'Máximo 5000 items por importación')
 })

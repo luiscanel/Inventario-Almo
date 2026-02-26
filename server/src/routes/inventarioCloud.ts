@@ -103,6 +103,11 @@ router.post('/bulk-delete', validate(bulkDeleteSchema), async (req, res) => {
 router.post('/import', validate(inventarioCloudImportSchema), async (req, res) => {
   try {
     const { items } = req.body
+    
+    console.log('=== IMPORT CLOUD ===')
+    console.log('Total items received:', items?.length)
+    console.log('Sample item:', JSON.stringify(items?.[0]))
+    console.log('=====================')
 
     const str = (v: any) => {
       if (v === null || v === undefined) return null
@@ -112,7 +117,7 @@ router.post('/import', validate(inventarioCloudImportSchema), async (req, res) =
 
     const num = (v: any) => {
       if (v === null || v === undefined) return null
-      const parsed = parseInt(String(v))
+      const parsed = parseInt(String(v).replace(/,/g, ''))
       return isNaN(parsed) ? null : parsed
     }
 
@@ -120,22 +125,24 @@ router.post('/import', validate(inventarioCloudImportSchema), async (req, res) =
       tenant: str(s.tenant),
       nube: str(s.nube),
       instanceName: str(s.instanceName),
-      ipPublica: str(s.ipPublica) || str(s.IPPublica),
-      ipPrivada: str(s.ipPrivada) || str(s.IPPrivada),
-      instanceType: str(s.instanceType) || str(s.InstanceType),
-      cpu: num(s.cpu) || num(s.Cpu),
-      ram: str(s.ram) || str(s.Ram),
-      storageGib: str(s.storageGib) || str(s['Storage GiB']),
-      sistemaOperativo: str(s.sistemaOperativo) || str(s['Sistema Operativo']),
-      costoUsd: str(s.costoUsd) || str(s['Costo US$']),
-      hostName: str(s.hostName) || str(s.HostName),
-      responsable: str(s.responsable) || str(s.Responsable),
-      modoUso: str(s.modoUso) || str(s['Modo USO']),
-      service: str(s.service) || str(s.Service)
+      ipPublica: str(s.ipPublica),
+      ipPrivada: str(s.ipPrivada),
+      instanceType: str(s.instanceType),
+      cpu: num(s.cpu),
+      ram: str(s.ram),
+      storageGib: str(s.storageGib),
+      sistemaOperativo: str(s.sistemaOperativo),
+      costoUsd: str(s.costoUsd),
+      hostName: str(s.hostName),
+      responsable: str(s.responsable),
+      modoUso: str(s.modoUso),
+      service: str(s.service)
     }))
 
-    // Filtrar items válidos
-    const validData = dataToInsert.filter((s: any) => s.instanceName || s.ipPublica || s.ipPrivada)
+    // Filtrar items que tengan al menos algún dato
+    const validData = dataToInsert.filter((s: any) => 
+      Object.values(s).some(v => v !== null && v !== undefined && v !== '')
+    )
     
     if (validData.length === 0) {
       return res.status(400).json({ 
@@ -153,6 +160,7 @@ router.post('/import', validate(inventarioCloudImportSchema), async (req, res) =
         await prisma.inventarioCloud.create({ data: item })
         created++
       } catch (e: any) {
+        console.error('Error creating item:', e.message)
         skipped++
       }
     }

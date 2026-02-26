@@ -94,9 +94,9 @@ model InventarioFisico {
 
 model InventarioCloud {
   id               Int     @id @default(autoincrement())
-  tenant           String
-  nube             String
-  instanceName     String
+  tenant           String?
+  nube             String?
+  instanceName     String?
   ipPublica        String?
   ipPrivada        String?
   instanceType     String?
@@ -109,6 +109,7 @@ model InventarioCloud {
   responsable      String?
   modoUso          String?
   service          String?
+  antivirus        String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
