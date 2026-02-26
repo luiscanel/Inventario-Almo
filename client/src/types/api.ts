@@ -94,6 +94,7 @@ export interface InventarioCloud {
   responsable: string | null
   modoUso: string | null
   service: string | null
+  antivirus: string | null
   createdAt: Date
   updatedAt: Date
 }

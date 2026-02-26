@@ -14,7 +14,7 @@ import * as XLSX from "xlsx"
 const emptyItem: Partial<InventarioCloud> = {
   tenant: "", nube: "", instanceName: "", ipPublica: "", ipPrivada: "", instanceType: "",
   cpu: 0, ram: "", storageGib: "", sistemaOperativo: "", costoUsd: "", hostName: "",
-  responsable: "", modoUso: "", service: ""
+  responsable: "", modoUso: "", service: "", antivirus: ""
 }
 
 const allColumns = [
@@ -24,8 +24,8 @@ const allColumns = [
   { key: "cpu", label: "CPU", default: true }, { key: "ram", label: "RAM", default: true },
   { key: "storageGib", label: "Storage (GiB)", default: true }, { key: "sistemaOperativo", label: "S.O.", default: true },
   { key: "costoUsd", label: "Costo (USD)", default: true }, { key: "hostName", label: "Hostname", default: false },
-  { key: "responsable", label: "Responsable", default: true }, { key: "modoUso", label: "Modo de Uso", default: false },
-  { key: "service", label: "Service", default: false },
+  { key: "antivirus", label: "Antivirus", default: false }, { key: "responsable", label: "Responsable", default: true },
+  { key: "modoUso", label: "Modo de Uso", default: false }, { key: "service", label: "Service", default: false },
 ]
 
 export default function InventoryCloud() {
@@ -43,7 +43,7 @@ export default function InventoryCloud() {
   const [selectMode, setSelectMode] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     "tenant", "nube", "instanceName", "ipPublica", "ipPrivada", "instanceType",
-    "cpu", "ram", "storageGib", "sistemaOperativo", "costoUsd", "responsable"
+    "cpu", "ram", "storageGib", "sistemaOperativo", "costoUsd", "antivirus", "responsable"
   ])
   const { toast } = useToast()
 
@@ -129,9 +129,10 @@ export default function InventoryCloud() {
         sistemaOperativo: row[9] !== undefined ? String(row[9]).trim() : null,
         costoUsd: row[10] !== undefined ? String(row[10]).trim() : null,
         hostName: row[11] !== undefined ? String(row[11]).trim() : null,
-        responsable: row[12] !== undefined ? String(row[12]).trim() : null,
-        modoUso: row[13] !== undefined ? String(row[13]).trim() : null,
-        service: row[14] !== undefined ? String(row[14]).trim() : null
+        antivirus: row[12] !== undefined ? String(row[12]).trim() : null,
+        responsable: row[13] !== undefined ? String(row[13]).trim() : null,
+        modoUso: row[14] !== undefined ? String(row[14]).trim() : null,
+        service: row[15] !== undefined ? String(row[15]).trim() : null
       }))
       
       console.log('First item to send:', JSON.stringify(dataToSend[0]))
@@ -147,7 +148,7 @@ export default function InventoryCloud() {
     const ws = XLSX.utils.json_to_sheet(items.map(s => ({
       "Tenant": s.tenant, "Nube": s.nube, "Instance Name": s.instanceName, "IP Pública": s.ipPublica, "IP Privada": s.ipPrivada, "Instance Type": s.instanceType,
       "CPU": s.cpu, "RAM": s.ram, "Storage (GiB)": s.storageGib, "Sistema Operativo": s.sistemaOperativo, "Costo (USD)": s.costoUsd,
-      "Hostname": s.hostName, "Responsable": s.responsable, "Modo de Uso": s.modoUso, "Service": s.service
+      "Hostname": s.hostName, "Antivirus": s.antivirus, "Responsable": s.responsable, "Modo de Uso": s.modoUso, "Service": s.service
     })))
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "InventarioCloud")
@@ -254,6 +255,7 @@ export default function InventoryCloud() {
             <div><Label>Sistema Operativo</Label><Input value={formData.sistemaOperativo || ""} onChange={e => setFormData({...formData, sistemaOperativo: e.target.value})} /></div>
             <div><Label>Costo (USD)</Label><Input value={formData.costoUsd || ""} onChange={e => setFormData({...formData, costoUsd: e.target.value})} placeholder="ej: 50.00" /></div>
             <div><Label>Hostname</Label><Input value={formData.hostName || ""} onChange={e => setFormData({...formData, hostName: e.target.value})} /></div>
+            <div><Label>Antivirus</Label><Input value={formData.antivirus || ""} onChange={e => setFormData({...formData, antivirus: e.target.value})} placeholder="ej: Ninguno, Windows Defender" /></div>
             <div><Label>Responsable</Label><Input value={formData.responsable || ""} onChange={e => setFormData({...formData, responsable: e.target.value})} /></div>
             <div><Label>Modo de Uso</Label><Input value={formData.modoUso || ""} onChange={e => setFormData({...formData, modoUso: e.target.value})} placeholder="ej: Producción, Desarrollo" /></div>
             <div><Label>Service</Label><Input value={formData.service || ""} onChange={e => setFormData({...formData, service: e.target.value})} /></div>
