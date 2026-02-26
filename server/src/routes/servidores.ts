@@ -106,22 +106,22 @@ router.post('/import', validate(servidorImportSchema), async (req, res) => {
     const { servidores } = req.body
 
     const str = (v: any) => {
-      if (v === null || v === undefined) return null
+      if (v === null || v === undefined) return ''
       const trimmed = String(v).trim()
-      return trimmed || null
+      return trimmed || ''
     }
 
     const dataToInsert = servidores.map((s: any) => {
       const server = s as any
       
       // Handle case variations
-      const nombreVM = server.nombreVM || server.nombreVm || server.nombrevm || null
-      const version = server.version || server.versionOs || server.versionos || null
+      const nombreVM = server.nombreVM || server.nombreVm || server.nombrevm || ''
+      const version = server.version || server.versionOs || server.versionos || ''
 
-      const parseNumber = (v: any): string | null => {
-        if (v === null || v === undefined) return null
+      const parseNumber = (v: any): string => {
+        if (v === null || v === undefined) return '0'
         const num = parseFloat(String(v).replace(/[^0-9.]/g, ''))
-        if (isNaN(num)) return null
+        if (isNaN(num)) return '0'
         return Math.round(num).toString()
       }
 

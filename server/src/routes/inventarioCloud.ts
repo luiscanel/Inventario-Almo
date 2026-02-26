@@ -110,15 +110,15 @@ router.post('/import', validate(inventarioCloudImportSchema), async (req, res) =
     console.log('=====================')
 
     const str = (v: any) => {
-      if (v === null || v === undefined) return null
+      if (v === null || v === undefined) return ''
       const trimmed = String(v).trim()
-      return trimmed || null
+      return trimmed || ''
     }
 
     const num = (v: any) => {
-      if (v === null || v === undefined) return null
+      if (v === null || v === undefined) return 0
       const parsed = parseInt(String(v).replace(/,/g, ''))
-      return isNaN(parsed) ? null : parsed
+      return isNaN(parsed) ? 0 : parsed
     }
 
     const dataToInsert = items.map((s: any) => ({

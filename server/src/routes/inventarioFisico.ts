@@ -106,9 +106,9 @@ router.post('/import', validate(inventarioFisicoImportSchema), async (req, res) 
     const { items } = req.body
 
     const str = (v: any) => {
-      if (v === null || v === undefined) return null
+      if (v === null || v === undefined) return ''
       const trimmed = String(v).trim()
-      return trimmed || null
+      return trimmed || ''
     }
 
     const dataToInsert = items.map((s: any) => ({
