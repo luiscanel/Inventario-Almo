@@ -8,24 +8,48 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Roles predefinidos del sistema
+// Módulos del sistema (agregables bajo demanda)
+model Modulo {
+  id          Int          @id @default(autoincrement())
+  nombre      String       @unique
+  descripcion String?
+  icono       String?      // Icono para el menú
+  orden       Int          @default(0)
+  activo      Boolean      @default(true)
+  permisos    Permiso[]
+  roles       RolModulo[]
+  createdAt   DateTime     @default(now())
+}
+
+// Roles del sistema (admin, viewer, o personalizados)
 model Rol {
   id          Int          @id @default(autoincrement())
   nombre      String       @unique
   descripcion String?
-  permisos    Permiso[]
+  esBase      Boolean      @default(false) // true para admin y viewer
+  roles       RolModulo[]  // Relación muchos a muchos con módulos
   usuarios    UsuarioRol[]
   createdAt   DateTime     @default(now())
 }
 
-// Permisos granulares por módulo
-model Permiso {
-  id     Int    @id @default(autoincrement())
-  modulo String // dashboard, inventario_servidores, inventario_fisico, informes, email, admin
-  accion String // ver, crear, editar, eliminar, exportar, enviar
-  roles  Rol[]
+// Relación muchos a muchos Rol-Modulo (qué módulos tiene cada rol)
+model RolModulo {
+  rolId    Int
+  moduloId Int
+  rol      Rol    @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  modulo   Modulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
 
-  @@unique([modulo, accion])
+  @@id([rolId, moduloId])
+}
+
+// Permisos por módulo (ver, crear, editar, eliminar, exportar)
+model Permiso {
+  id       Int     @id @default(autoincrement())
+  moduloId Int
+  accion   String  // ver, crear, editar, eliminar, exportar
+  modulo   Modulo  @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+
+  @@unique([moduloId, accion])
 }
 
 // Relación muchos a muchos usuarios-roles

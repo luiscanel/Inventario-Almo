@@ -1,142 +1,144 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../src/prisma/index.js'
 
-const prisma = new PrismaClient()
+//.seed // npm run prisma seed
 
 async function main() {
-  console.log('Inicializando roles y permisos...')
+  console.log('🌱 Starting seed...')
 
-  // Crear permisos por módulo
-  const permisosData = [
-    // Dashboard
-    { modulo: 'dashboard', accion: 'ver' },
-    // Inventario Servidores
-    { modulo: 'inventario_servidores', accion: 'ver' },
-    { modulo: 'inventario_servidores', accion: 'crear' },
-    { modulo: 'inventario_servidores', accion: 'editar' },
-    { modulo: 'inventario_servidores', accion: 'eliminar' },
-    { modulo: 'inventario_servidores', accion: 'exportar' },
-    // Inventario Físico
-    { modulo: 'inventario_fisico', accion: 'ver' },
-    { modulo: 'inventario_fisico', accion: 'crear' },
-    { modulo: 'inventario_fisico', accion: 'editar' },
-    { modulo: 'inventario_fisico', accion: 'eliminar' },
-    { modulo: 'inventario_fisico', accion: 'exportar' },
-    // Informes
-    { modulo: 'informes', accion: 'ver' },
-    { modulo: 'informes', accion: 'exportar' },
-    { modulo: 'informes', accion: 'enviar' },
-    // Email
-    { modulo: 'email', accion: 'ver' },
-    { modulo: 'email', accion: 'enviar' },
-    // Admin
-    { modulo: 'admin', accion: 'ver' },
-    { modulo: 'admin', accion: 'crear' },
-    { modulo: 'admin', accion: 'editar' },
-    { modulo: 'admin', accion: 'eliminar' },
+  // 1. Crear módulos base del sistema
+  const modulosBase = [
+    { nombre: 'dashboard', descripcion: 'Panel de control y estadísticas', icono: 'LayoutDashboard', orden: 1 },
+    { nombre: 'servidores', descripcion: 'Inventario de servidores y VMs', icono: 'Server', orden: 2 },
+    { nombre: 'inventario_fisico', descripcion: 'Inventario de equipos físicos', icono: 'Monitor', orden: 3 },
+    { nombre: 'inventario_cloud', descripcion: 'Inventario de servicios en la nube', icono: 'Cloud', orden: 4 },
+    { nombre: 'informes', descripcion: 'Informes y exportaciones', icono: 'FileText', orden: 5 },
+    { nombre: 'admin', descripcion: 'Administración de usuarios y roles', icono: 'Settings', orden: 6 },
+    { nombre: 'email', descripcion: 'Configuración de notificaciones email', icono: 'Mail', orden: 7 },
   ]
 
-  // Crear permisos
-  for (const p of permisosData) {
-    await prisma.permiso.upsert({
-      where: { modulo_accion: { modulo: p.modulo, accion: p.accion } },
-      update: {},
-      create: p,
-    })
+  console.log('📦 Creating modulos...')
+  
+  const modulosCreados: Record<string, number> = {}
+  
+  for (const mod of modulosBase) {
+    const existente = await prisma.modulo.findUnique({ where: { nombre: mod.nombre } })
+    if (!existente) {
+      const creado = await prisma.modulo.create({ data: mod })
+      modulosCreados[mod.nombre] = creado.id
+      console.log(`  ✓ Modulo: ${mod.nombre}`)
+    } else {
+      modulosCreados[mod.nombre] = existente.id
+      console.log(`  ✓ Modulo ya existe: ${mod.nombre}`)
+    }
   }
-  console.log('Permisos creados')
 
-  // Obtener permisos para cada rol
-  const permisosDashboard = await prisma.permiso.findMany({ where: { modulo: 'dashboard' } })
-  const permisosInvServidores = await prisma.permiso.findMany({ where: { modulo: 'inventario_servidores' } })
-  const permisosInvFisico = await prisma.permiso.findMany({ where: { modulo: 'inventario_fisico' } })
-  const permisosInformes = await prisma.permiso.findMany({ where: { modulo: 'informes' } })
-  const permisosEmail = await prisma.permiso.findMany({ where: { modulo: 'email' } })
-  const permisosAdmin = await prisma.permiso.findMany({ where: { modulo: 'admin' } })
+  // 2. Crear permisos base por módulo
+  const accionesBase = ['ver', 'crear', 'editar', 'eliminar', 'exportar']
+  
+  console.log('🔐 Creating permisos...')
+  
+  for (const modNombre of Object.keys(modulosCreados)) {
+    for (const accion of accionesBase) {
+      const existente = await prisma.permiso.findFirst({
+        where: { moduloId: modulosCreados[modNombre], accion }
+      })
+      if (!existente) {
+        await prisma.permiso.create({
+          data: { moduloId: modulosCreados[modNombre], accion }
+        })
+        console.log(`  ✓ Permiso: ${modNombre}_${accion}`)
+      }
+    }
+  }
 
-  // Rol Admin - todos los permisos
-  await prisma.rol.upsert({
+  // 3. Crear roles base (admin y viewer)
+  console.log('👥 Creating roles...')
+  
+  // Rol Admin - tiene todos los módulos y todos los permisos
+  const rolAdmin = await prisma.rol.upsert({
     where: { nombre: 'admin' },
     update: {},
     create: {
       nombre: 'admin',
-      descripcion: 'Administrador con acceso completo',
-      permisos: {
-        connect: [
-          ...permisosDashboard.map(p => ({ id: p.id })),
-          ...permisosInvServidores.map(p => ({ id: p.id })),
-          ...permisosInvFisico.map(p => ({ id: p.id })),
-          ...permisosInformes.map(p => ({ id: p.id })),
-          ...permisosEmail.map(p => ({ id: p.id })),
-          ...permisosAdmin.map(p => ({ id: p.id })),
-        ]
-      }
+      descripcion: 'Administrador con acceso completo a todos los módulos',
+      esBase: true,
     }
   })
-  console.log('Rol admin creado')
+  console.log(`  ✓ Rol: admin`)
 
-  // Rol Editor - puede ver y editar inventarios e informes, NO email ni admin
-  await prisma.rol.upsert({
-    where: { nombre: 'editor' },
-    update: {},
-    create: {
-      nombre: 'editor',
-      descripcion: 'Editor con acceso a inventarios e informes',
-      permisos: {
-        connect: [
-          ...permisosDashboard.map(p => ({ id: p.id })),
-          ...permisosInvServidores.map(p => ({ id: p.id })),
-          ...permisosInvFisico.map(p => ({ id: p.id })),
-          ...permisosInformes.map(p => ({ id: p.id })),
-        ]
-      }
-    }
-  })
-  console.log('Rol editor creado')
+  // Asignar todos los módulos y permisos al admin
+  const todosLosModulos = await prisma.modulo.findMany()
+  const todosLosPermisos = await prisma.permiso.findMany()
+  
+  await prisma.rolModulo.deleteMany({ where: { rolId: rolAdmin.id } })
+  for (const mod of todosLosModulos) {
+    await prisma.rolModulo.create({
+      data: { rolId: rolAdmin.id, moduloId: mod.id }
+    })
+  }
+  
+  // El admin tiene todos los permisos
+  for (const perm of todosLosPermisos) {
+    await prisma.permiso.update({
+      where: { id: perm.id },
+      data: { modulo: { connect: { id: perm.moduloId } } }
+    })
+  }
+  
+  // Actualizar permisos con la nueva estructura
+  for (const perm of todosLosPermisos) {
+    await prisma.permiso.update({
+      where: { id: perm.id },
+      data: { moduloId: perm.moduloId }
+    })
+  }
 
-  // Rol Viewer - solo lectura (NO email, NO admin)
-  await prisma.rol.upsert({
+  // Rol Viewer - solo tiene permisos de ver
+  const rolViewer = await prisma.rol.upsert({
     where: { nombre: 'viewer' },
     update: {},
     create: {
       nombre: 'viewer',
-      descripcion: 'Solo lectura - acceso limitado',
-      permisos: {
-        connect: [
-          ...permisosDashboard.map(p => ({ id: p.id })),
-          { id: permisosInvServidores.find(p => p.accion === 'ver')!.id },
-          { id: permisosInvFisico.find(p => p.accion === 'ver')!.id },
-          { id: permisosInformes.find(p => p.accion === 'ver')!.id },
-        ]
-      }
+      descripcion: 'Visualizador de solo lectura',
+      esBase: true,
     }
   })
-  console.log('Rol viewer creado')
+  console.log(`  ✓ Rol: viewer`)
 
-  // Rol Soporte (legacy)
-  await prisma.rol.upsert({
-    where: { nombre: 'soporte' },
-    update: {},
-    create: {
-      nombre: 'soporte',
-      descripcion: 'Soporte técnico - acceso completo a inventarios',
-      permisos: {
-        connect: [
-          ...permisosDashboard.map(p => ({ id: p.id })),
-          ...permisosInvServidores.map(p => ({ id: p.id })),
-          ...permisosInvFisico.map(p => ({ id: p.id })),
-          ...permisosInformes.map(p => ({ id: p.id })),
-        ]
-      }
-    }
+  // Asignar solo permisos de ver al viewer
+  await prisma.rolModulo.deleteMany({ where: { rolId: rolViewer.id } })
+  const permisosVer = await prisma.permiso.findMany({ where: { accion: 'ver' } })
+  
+  for (const mod of todosLosModulos) {
+    await prisma.rolModulo.create({
+      data: { rolId: rolViewer.id, moduloId: mod.id }
+    })
+  }
+
+  // 4. Verificar que el usuario admin existente tenga el rol admin
+  const adminUser = await prisma.user.findFirst({
+    where: { email: 'jorge.canel@grupoalmo.com' }
   })
-  console.log('Rol soporte creado')
+  
+  if (adminUser) {
+    const tieneRolAdmin = await prisma.usuarioRol.findFirst({
+      where: { usuarioId: adminUser.id, rolId: rolAdmin.id }
+    })
+    
+    if (!tieneRolAdmin) {
+      await prisma.usuarioRol.create({
+        data: { usuarioId: adminUser.id, rolId: rolAdmin.id }
+      })
+      console.log(`  ✓ Usuario admin asignado al rol admin`)
+    }
+  }
 
-  console.log('Seed completado!')
+  console.log('✅ Seed completed!')
 }
 
 main()
   .catch((e) => {
-    console.error(e)
+    console.error('❌ Seed error:', e)
     process.exit(1)
   })
   .finally(async () => {

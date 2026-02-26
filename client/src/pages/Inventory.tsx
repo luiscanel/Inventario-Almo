@@ -23,6 +23,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Servidor } from '@/types'
 import { Plus, Pencil, Trash2, Search, Download, Upload, Columns2, Check, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { usePermission } from '@/hooks/usePermission'
 
 const estados = ['Activo', 'Inactivo', 'Mantenimiento']
 
@@ -79,6 +80,12 @@ export default function Inventory() {
     'ambiente', 'sistemaOperativo', 'version', 'antivirus', 'estado', 'responsable'
   ])
   const { toast } = useToast()
+  
+  // Permisos
+  const canCreate = usePermission('servidores', 'crear')
+  const canEdit = usePermission('servidores', 'editar')
+  const canDelete = usePermission('servidores', 'eliminar')
+  const canExport = usePermission('servidores', 'exportar')
 
   useEffect(() => {
     loadServidores()
@@ -379,7 +386,7 @@ export default function Inventory() {
               Importar
             </Button>
           </div>
-          <Button variant="outline" onClick={exportToExcel}>
+          <Button variant="outline" onClick={exportToExcel} disabled={!canExport}>
             <Download className="w-4 h-4 mr-2" />
             Exportar
           </Button>
@@ -404,7 +411,7 @@ export default function Inventory() {
               Seleccionar
             </Button>
           )}
-          <Button onClick={() => { setFormData(emptyServidor); setEditingServidor(null); setIsDialogOpen(true) }}>
+          <Button onClick={() => { setFormData(emptyServidor); setEditingServidor(null); setIsDialogOpen(true) }} disabled={!canCreate}>
             <Plus className="w-4 h-4 mr-2" />
             Nuevo Servidor
           </Button>
@@ -486,10 +493,10 @@ export default function Inventory() {
                         {!selectMode && (
                           <TableCell className="text-right w-20">
                             <div className="flex justify-end gap-1">
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(servidor)}>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(servidor)} disabled={!canEdit}>
                                 <Pencil className="w-3 h-3" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmDelete(servidor.id)}>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => confirmDelete(servidor.id)} disabled={!canDelete}>
                                 <Trash2 className="w-3 h-3 text-red-500" />
                               </Button>
                             </div>

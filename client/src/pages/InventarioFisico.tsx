@@ -22,6 +22,7 @@ import { getInventarioFisico, createInventarioFisico, updateInventarioFisico, de
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Pencil, Trash2, Search, Download, Upload, Check, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { usePermission } from '@/hooks/usePermission'
 
 const emptyItem = {
   pais: '',
@@ -50,6 +51,12 @@ export default function InventarioFisico() {
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [selectMode, setSelectMode] = useState(false)
   const { toast } = useToast()
+  
+  // Permisos
+  const canCreate = usePermission('inventario_fisico', 'crear')
+  const canEdit = usePermission('inventario_fisico', 'editar')
+  const canDelete = usePermission('inventario_fisico', 'eliminar')
+  const canExport = usePermission('inventario_fisico', 'exportar')
 
   useEffect(() => {
     loadItems()
@@ -247,7 +254,7 @@ export default function InventarioFisico() {
             <Download className="h-4 w-4 mr-2" />
             Plantilla
           </Button>
-          <Button variant="outline" onClick={exportToExcel}>
+          <Button variant="outline" onClick={exportToExcel} disabled={!canExport}>
             <Download className="h-4 w-4 mr-2" />
             Exportar
           </Button>
@@ -273,7 +280,7 @@ export default function InventarioFisico() {
               Seleccionar
             </Button>
           )}
-          <Button onClick={openNewDialog}>
+          <Button onClick={openNewDialog} disabled={!canCreate}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo
           </Button>
@@ -352,10 +359,10 @@ export default function InventarioFisico() {
                     {!selectMode && (
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(item)} disabled={!canEdit}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => { setItemToDelete(item.id); setDeleteConfirmOpen(true) }}>
+                          <Button variant="ghost" size="icon" onClick={() => { setItemToDelete(item.id); setDeleteConfirmOpen(true) }} disabled={!canDelete}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>

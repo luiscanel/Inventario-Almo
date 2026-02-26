@@ -8,6 +8,7 @@ interface User {
   nombre: string
   rol: string
   roles?: string[]
+  modulos?: string[]
   permisos?: Permiso[]
 }
 
@@ -16,9 +17,11 @@ interface AuthState {
   user: User | null
   token: string | null
   permisos: Permiso[]
+  modulos: string[]
   login: (user: User, token: string) => void
   logout: () => void
   tienePermiso: (modulo: string, accion: string) => boolean
+  tieneModulo: (modulo: string) => boolean
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -28,14 +31,24 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       permisos: [],
+      modulos: [],
       login: (user, token) => {
         const permisos = user.permisos || []
-        set({ isAuthenticated: true, user, token, permisos })
+        const modulos = user.modulos || []
+        set({ isAuthenticated: true, user, token, permisos, modulos })
       },
-      logout: () => set({ isAuthenticated: false, user: null, token: null, permisos: [] }),
+      logout: () => set({ isAuthenticated: false, user: null, token: null, permisos: [], modulos: [] }),
       tienePermiso: (modulo: string, accion: string) => {
-        const { permisos } = get()
+        const { permisos, user } = get()
+        // Admin tiene todos los permisos
+        if (user?.roles?.includes('admin')) return true
         return permisos.some(p => p.modulo === modulo && p.accion === accion)
+      },
+      tieneModulo: (modulo: string) => {
+        const { modulos, user } = get()
+        // Admin tiene todos los módulos
+        if (user?.roles?.includes('admin')) return true
+        return modulos.includes(modulo)
       },
     }),
     {

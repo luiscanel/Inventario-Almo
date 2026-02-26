@@ -234,6 +234,47 @@ export async function getDashboardResponsables() {
 }
 
 // ============================================
+// Admin - Módulos
+// ============================================
+
+export async function getModulos() {
+  const res = await fetch(`${API_URL}/admin/modulos`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<any[]>(res)
+}
+
+export async function createModulo(data: { nombre: string; descripcion?: string; icono?: string; orden?: number }) {
+  const res = await fetch(`${API_URL}/admin/modulos`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse<any>(res)
+}
+
+export async function updateModulo(id: number, data: { nombre?: string; descripcion?: string; icono?: string; orden?: number; activo?: boolean }) {
+  const res = await fetch(`${API_URL}/admin/modulos/${id}`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  })
+  return handleResponse<any>(res)
+}
+
+export async function deleteModulo(id: number) {
+  const res = await fetch(`${API_URL}/admin/modulos/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Error al eliminar módulo' }))
+    throw new Error(error.message)
+  }
+  return res.json()
+}
+
+// ============================================
 // Admin - Roles
 // ============================================
 
@@ -251,7 +292,7 @@ export async function getPermisos() {
   return handleResponse<any>(res)
 }
 
-export async function createRol(data: { nombre: string; descripcion?: string; permisos?: string[] }) {
+export async function createRol(data: { nombre: string; descripcion?: string; moduloIds?: number[] }) {
   const res = await fetch(`${API_URL}/admin/roles`, {
     method: 'POST',
     headers: getHeaders(),
@@ -260,7 +301,7 @@ export async function createRol(data: { nombre: string; descripcion?: string; pe
   return handleResponse<any>(res)
 }
 
-export async function updateRol(id: number, data: { nombre?: string; descripcion?: string; permisos?: string[] }) {
+export async function updateRol(id: number, data: { nombre?: string; descripcion?: string; moduloIds?: number[] }) {
   const res = await fetch(`${API_URL}/admin/roles/${id}`, {
     method: 'PUT',
     headers: getHeaders(),
@@ -292,7 +333,7 @@ export async function getUsuarios(): Promise<Usuario[]> {
   return handleResponse<Usuario[]>(res)
 }
 
-export async function createUsuario(data: { email: string; nombre: string; password: string; rol: string; activo?: boolean }): Promise<Usuario> {
+export async function createUsuario(data: { email: string; nombre: string; password: string; rolIds?: number[]; activo?: boolean }): Promise<Usuario> {
   const res = await fetch(`${API_URL}/admin/usuarios`, {
     method: 'POST',
     headers: getHeaders(),
@@ -301,7 +342,7 @@ export async function createUsuario(data: { email: string; nombre: string; passw
   return handleResponse<Usuario>(res)
 }
 
-export async function updateUsuario(id: number, data: { nombre?: string; rol?: string; activo?: boolean; password?: string }): Promise<Usuario> {
+export async function updateUsuario(id: number, data: { nombre?: string; rolIds?: number[]; activo?: boolean; password?: string }): Promise<Usuario> {
   const res = await fetch(`${API_URL}/admin/usuarios/${id}`, {
     method: 'PUT',
     headers: getHeaders(),

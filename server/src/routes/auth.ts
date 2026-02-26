@@ -18,7 +18,8 @@ router.post('/login', validate(loginSchema), async (req, res) => {
           include: {
             rol: {
               include: {
-                permisos: true
+                permisos: { include: { modulo: true } },
+                roles: { include: { modulo: true } }
               }
             }
           }
@@ -51,16 +52,26 @@ router.post('/login', validate(loginSchema), async (req, res) => {
       })
     }
 
-    // Extraer permisos únicos
+    // Extraer permisos únicos (de roles -> módulos -> permisos)
     const permisosSet = new Set<string>()
     const permisos: { modulo: string; accion: string }[] = []
+    const modulosSet = new Set<string>()
+    const modulos: string[] = []
 
     for (const ur of usuario.usuarioRoles) {
-      for (const p of ur.rol.permisos) {
-        const key = `${p.modulo}_${p.accion}`
+      // Extraer módulos del rol
+      for (const rm of ur.rol.roles || []) {
+        if (!modulosSet.has(rm.modulo.nombre)) {
+          modulosSet.add(rm.modulo.nombre)
+          modulos.push(rm.modulo.nombre)
+        }
+      }
+      // Extraer permisos del rol
+      for (const p of ur.rol.permisos || []) {
+        const key = `${p.modulo.nombre}_${p.accion}`
         if (!permisosSet.has(key)) {
           permisosSet.add(key)
-          permisos.push({ modulo: p.modulo, accion: p.accion })
+          permisos.push({ modulo: p.modulo.nombre, accion: p.accion })
         }
       }
     }
@@ -84,6 +95,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
         nombre: usuario.nombre,
         rol: usuario.rol,
         roles,
+        modulos,
         permisos
       }
     })

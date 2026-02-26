@@ -22,24 +22,36 @@ import {
 import { 
   getUsuarios, createUsuario, updateUsuario, deleteUsuario,
   getRoles, createRol, updateRol, deleteRol,
-  getPermisos
+  getPermisos, getModulos, createModulo, updateModulo, deleteModulo
 } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
 import { Users, Plus, Shield, Trash2, Edit, Mail, Send, Save, TestTube, CheckCircle, XCircle } from 'lucide-react'
 import type { Usuario } from '@/types/api'
 
 // Tipos locales
+interface Modulo {
+  id: number
+  nombre: string
+  descripcion: string
+  icono: string
+  orden: number
+  activo: boolean
+  permisos: any[]
+  roles: any[]
+}
+
 interface Rol {
   id: number
   nombre: string
   descripcion: string
-  permisos: any[]
+  esBase: boolean
   usuariosCount: number
+  modulos: Modulo[]
 }
 
 interface PermisoData {
-  permisos: any[]
-  grouped: Record<string, string[]>
+  modulos: Modulo[]
+  grouped: Record<string, any[]>
 }
 
 interface EmailConfig {
@@ -54,10 +66,11 @@ interface EmailConfig {
 
 export default function Admin() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [modulos, setModulos] = useState<Modulo[]>([])
   const [roles, setRoles] = useState<Rol[]>([])
   const [permisos, setPermisos] = useState<PermisoData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'usuarios' | 'roles' | 'email'>('usuarios')
+  const [activeTab, setActiveTab] = useState<'usuarios' | 'modulos' | 'roles' | 'email'>('usuarios')
   
   // Email state
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({
@@ -78,22 +91,31 @@ export default function Admin() {
   // Dialogs
   const [isUsuarioDialogOpen, setIsUsuarioDialogOpen] = useState(false)
   const [isRolDialogOpen, setIsRolDialogOpen] = useState(false)
+  const [isModuloDialogOpen, setIsModuloDialogOpen] = useState(false)
   const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null)
   const [editingRol, setEditingRol] = useState<Rol | null>(null)
+  const [editingModulo, setEditingModulo] = useState<Modulo | null>(null)
   
   // Forms
   const [usuarioForm, setUsuarioForm] = useState({
     email: '',
     nombre: '',
     password: '',
-    rol: 'soporte' as string,
+    rolIds: [] as number[],
     activo: true
   })
   
   const [rolForm, setRolForm] = useState({
     nombre: '',
     descripcion: '',
-    permisos: [] as string[]
+    moduloIds: [] as number[]
+  })
+
+  const [moduloForm, setModuloForm] = useState({
+    nombre: '',
+    descripcion: '',
+    icono: 'Circle',
+    orden: 0
   })
   
   const { toast } = useToast()
@@ -105,12 +127,14 @@ export default function Admin() {
 
   const loadData = async () => {
     try {
-      const [usuariosData, rolesData, permisosData] = await Promise.all([
+      const [usuariosData, modulosData, rolesData, permisosData] = await Promise.all([
         getUsuarios(),
+        getModulos(),
         getRoles(),
         getPermisos()
       ])
       setUsuarios(usuariosData)
+      setModulos(modulosData)
       setRoles(rolesData)
       setPermisos(permisosData)
     } catch (error) {
@@ -225,13 +249,19 @@ export default function Admin() {
       if (editingUsuario) {
         await updateUsuario(editingUsuario.id, {
           nombre: usuarioForm.nombre,
-          rol: usuarioForm.rol,
+          rolIds: usuarioForm.rolIds,
           activo: usuarioForm.activo,
           password: usuarioForm.password || undefined
         })
         toast({ title: 'Usuario actualizado correctamente' })
       } else {
-        await createUsuario(usuarioForm)
+        await createUsuario({
+          email: usuarioForm.email,
+          nombre: usuarioForm.nombre,
+          password: usuarioForm.password,
+          rolIds: usuarioForm.rolIds,
+          activo: usuarioForm.activo
+        })
         toast({ title: 'Usuario creado correctamente' })
       }
       setIsUsuarioDialogOpen(false)
@@ -257,11 +287,12 @@ export default function Admin() {
   const openUsuarioDialog = (usuario?: Usuario) => {
     if (usuario) {
       setEditingUsuario(usuario)
+      const rolIds = (usuario as any).roles?.map((r: any) => r.id) || []
       setUsuarioForm({
         email: usuario.email,
         nombre: usuario.nombre,
         password: '',
-        rol: usuario.rol,
+        rolIds,
         activo: usuario.activo
       })
     } else {
@@ -272,7 +303,16 @@ export default function Admin() {
 
   const resetUsuarioForm = () => {
     setEditingUsuario(null)
-    setUsuarioForm({ email: '', nombre: '', password: '', rol: 'soporte', activo: true })
+    setUsuarioForm({ email: '', nombre: '', password: '', rolIds: [], activo: true })
+  }
+
+  const toggleUsuarioRol = (rolId: number) => {
+    setUsuarioForm(prev => ({
+      ...prev,
+      rolIds: prev.rolIds.includes(rolId)
+        ? prev.rolIds.filter(id => id !== rolId)
+        : [...prev.rolIds, rolId]
+    }))
   }
 
   // ========================
@@ -292,11 +332,15 @@ export default function Admin() {
         await updateRol(editingRol.id, {
           nombre: rolForm.nombre,
           descripcion: rolForm.descripcion,
-          permisos: rolForm.permisos
+          moduloIds: rolForm.moduloIds
         })
         toast({ title: 'Rol actualizado correctamente' })
       } else {
-        await createRol(rolForm)
+        await createRol({
+          nombre: rolForm.nombre,
+          descripcion: rolForm.descripcion,
+          moduloIds: rolForm.moduloIds
+        })
         toast({ title: 'Rol creado correctamente' })
       }
       setIsRolDialogOpen(false)
@@ -325,7 +369,7 @@ export default function Admin() {
       setRolForm({
         nombre: rol.nombre,
         descripcion: rol.descripcion || '',
-        permisos: rol.permisos.map(p => `${p.modulo}_${p.accion}`)
+        moduloIds: rol.modulos?.map(m => m.id) || []
       })
     } else {
       resetRolForm()
@@ -335,16 +379,53 @@ export default function Admin() {
 
   const resetRolForm = () => {
     setEditingRol(null)
-    setRolForm({ nombre: '', descripcion: '', permisos: [] })
+    setRolForm({ nombre: '', descripcion: '', moduloIds: [] })
   }
 
-  const togglePermiso = (permiso: string) => {
-    setRolForm(prev => ({
-      ...prev,
-      permisos: prev.permisos.includes(permiso)
-        ? prev.permisos.filter(p => p !== permiso)
-        : [...prev.permisos, permiso]
-    }))
+  // ========================
+  // MÓDULOS
+  // ========================
+  const handleSaveModulo = async () => {
+    try {
+      if (editingModulo) {
+        await updateModulo(editingModulo.id, moduloForm)
+        toast({ title: 'Módulo actualizado' })
+      } else {
+        await createModulo(moduloForm)
+        toast({ title: 'Módulo creado' })
+      }
+      setIsModuloDialogOpen(false)
+      loadData()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    }
+  }
+
+  const handleDeleteModulo = async (id: number) => {
+    if (!confirm('¿Estás seguro de eliminar este módulo?')) return
+    try {
+      await deleteModulo(id)
+      toast({ title: 'Módulo eliminado' })
+      loadData()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    }
+  }
+
+  const openModuloDialog = (modulo?: Modulo) => {
+    if (modulo) {
+      setEditingModulo(modulo)
+      setModuloForm({
+        nombre: modulo.nombre,
+        descripcion: modulo.descripcion || '',
+        icono: modulo.icono || 'Circle',
+        orden: modulo.orden || 0
+      })
+    } else {
+      setEditingModulo(null)
+      setModuloForm({ nombre: '', descripcion: '', icono: 'Circle', orden: 0 })
+    }
+    setIsModuloDialogOpen(true)
   }
 
   // ========================
@@ -403,6 +484,13 @@ export default function Admin() {
           Usuarios ({usuarios.length})
         </Button>
         <Button
+          variant={activeTab === 'modulos' ? 'default' : 'ghost'}
+          onClick={() => setActiveTab('modulos')}
+        >
+          <Shield className="w-4 h-4 mr-2" />
+          Módulos ({modulos.length})
+        </Button>
+        <Button
           variant={activeTab === 'roles' ? 'default' : 'ghost'}
           onClick={() => setActiveTab('roles')}
         >
@@ -447,9 +535,13 @@ export default function Admin() {
                       <TableCell className="font-medium">{usuario.nombre}</TableCell>
                       <TableCell>{usuario.email}</TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRolColor(usuario.rol)}`}>
-                          {getRolLabel(usuario.rol)}
-                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {(usuario as any).roles?.map((r: any) => (
+                            <span key={r.id} className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRolColor(r.nombre)}`}>
+                              {r.nombre}
+                            </span>
+                          )) || <span className="text-muted-foreground">Sin rol</span>}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${usuario.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -473,6 +565,60 @@ export default function Admin() {
               </Table>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* MÓDULOS TAB */}
+      {activeTab === 'modulos' && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => openModuloDialog()}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nuevo Módulo
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {modulos.map((modulo) => (
+              <Card key={modulo.id}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{modulo.nombre}</CardTitle>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openModuloDialog(modulo)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-red-600"
+                        onClick={() => handleDeleteModulo(modulo.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-2">{modulo.descripcion}</p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className={modulo.activo ? 'text-green-600' : 'text-red-600'}>
+                      {modulo.activo ? 'Activo' : 'Inactivo'}
+                    </span>
+                    <span>•</span>
+                    <span>Orden: {modulo.orden}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {modulo.permisos?.slice(0, 5).map((p: any) => (
+                      <span key={p.id} className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                        {p.accion}
+                      </span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
@@ -515,13 +661,13 @@ export default function Admin() {
                     <span>{rol.usuariosCount} usuario{rol.usuariosCount !== 1 ? 's' : ''}</span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {rol.permisos.slice(0, 5).map((p: any) => (
-                      <span key={p.id} className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                        {p.modulo}_{p.accion}
+                    {rol.modulos?.slice(0, 5).map((m: any) => (
+                      <span key={m.id} className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                        {m.nombre}
                       </span>
                     ))}
-                    {rol.permisos.length > 5 && (
-                      <span className="text-xs text-muted-foreground">+{rol.permisos.length - 5}</span>
+                    {rol.modulos?.length > 5 && (
+                      <span className="text-xs text-muted-foreground">+{rol.modulos.length - 5}</span>
                     )}
                   </div>
                 </CardContent>
@@ -751,15 +897,21 @@ export default function Admin() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Rol</Label>
-                <Select value={usuarioForm.rol} onValueChange={(v) => setUsuarioForm({...usuarioForm, rol: v})}>
-                  <SelectTrigger><span className="capitalize">{getRolLabel(usuarioForm.rol)}</span></SelectTrigger>
-                  <SelectContent>
-                    {roles.map((r) => (
-                      <SelectItem key={r.nombre} value={r.nombre}>{getRolLabel(r.nombre)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Roles</Label>
+                <div className="grid grid-cols-2 gap-2 border p-2 rounded max-h-40 overflow-y-auto">
+                  {roles.map((r) => (
+                    <div key={r.id} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id={`rol-${r.id}`}
+                        checked={usuarioForm.rolIds.includes(r.id)}
+                        onChange={() => toggleUsuarioRol(r.id)}
+                        className="rounded"
+                      />
+                      <Label htmlFor={`rol-${r.id}`} className="font-normal">{r.nombre}</Label>
+                    </div>
+                  ))}
+                </div>
               </div>
               {editingUsuario && (
                 <div className="flex items-center gap-2">
@@ -779,6 +931,48 @@ export default function Admin() {
               <Button type="submit">{editingUsuario ? 'Actualizar' : 'Crear'}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MÓDULO DIALOG */}
+      <Dialog open={isModuloDialogOpen} onOpenChange={setIsModuloDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingModulo ? 'Editar Módulo' : 'Nuevo Módulo'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nombre del Módulo</Label>
+              <Input 
+                value={moduloForm.nombre}
+                onChange={(e) => setModuloForm({...moduloForm, nombre: e.target.value.toLowerCase().replace(/\s+/g, '_')})}
+                placeholder="nombre_modulo"
+                required
+                disabled={!!editingModulo}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descripción</Label>
+              <Input 
+                value={moduloForm.descripcion}
+                onChange={(e) => setModuloForm({...moduloForm, descripcion: e.target.value})}
+                placeholder="Descripción del módulo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Orden</Label>
+              <Input 
+                type="number"
+                value={moduloForm.orden}
+                onChange={(e) => setModuloForm({...moduloForm, orden: parseInt(e.target.value) || 0})}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModuloDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveModulo}>{editingModulo ? 'Actualizar' : 'Crear'}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -813,24 +1007,37 @@ export default function Admin() {
               
               {permisos && (
                 <div className="space-y-2">
-                  <Label>Permisos</Label>
+                  <Label>Módulos del Rol</Label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-60 overflow-y-auto border p-2 rounded">
-                    {permisos.permisos.map((permiso) => {
-                      const permisoKey = `${permiso.modulo}_${permiso.accion}`
-                      const isSelected = rolForm.permisos.includes(permisoKey)
+                    {permisos.modulos.map((modulo) => {
+                      const isSelected = rolForm.moduloIds.includes(modulo.id)
                       return (
                         <div 
-                          key={permiso.id}
+                          key={modulo.id}
                           className={`flex items-center gap-2 p-2 rounded cursor-pointer ${isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-gray-100'}`}
-                          onClick={() => togglePermiso(permisoKey)}
+                          onClick={() => {
+                            setRolForm(prev => ({
+                              ...prev,
+                              moduloIds: prev.moduloIds.includes(modulo.id)
+                                ? prev.moduloIds.filter(id => id !== modulo.id)
+                                : [...prev.moduloIds, modulo.id]
+                            }))
+                          }}
                         >
                           <input 
                             type="checkbox" 
                             checked={isSelected}
-                            onChange={() => togglePermiso(permisoKey)}
+                            onChange={() => {
+                              setRolForm(prev => ({
+                                ...prev,
+                                moduloIds: prev.moduloIds.includes(modulo.id)
+                                  ? prev.moduloIds.filter(id => id !== modulo.id)
+                                  : [...prev.moduloIds, modulo.id]
+                              }))
+                            }}
                             className="sr-only"
                           />
-                          <span className="text-sm">{permiso.modulo}_{permiso.accion}</span>
+                          <span className="text-sm">{modulo.nombre}</span>
                         </div>
                       )
                     })}

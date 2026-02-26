@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { InventarioCloud } from "@/types/api"
 import { Plus, Pencil, Trash2, Search, Download, Upload, Columns2, Check, X, Cloud } from "lucide-react"
 import * as XLSX from "xlsx"
+import { usePermission } from "@/hooks/usePermission"
 
 const emptyItem: Partial<InventarioCloud> = {
   tenant: "", nube: "", instanceName: "", ipPublica: "", ipPrivada: "", instanceType: "",
@@ -46,6 +47,12 @@ export default function InventoryCloud() {
     "cpu", "ram", "storageGib", "sistemaOperativo", "costoUsd", "antivirus", "responsable"
   ])
   const { toast } = useToast()
+  
+  // Permisos
+  const canCreate = usePermission('inventario_cloud', 'crear')
+  const canEdit = usePermission('inventario_cloud', 'editar')
+  const canDelete = usePermission('inventario_cloud', 'eliminar')
+  const canExport = usePermission('inventario_cloud', 'exportar')
 
   useEffect(() => { loadItems() }, [])
 
@@ -95,11 +102,11 @@ export default function InventoryCloud() {
   }
 
   const downloadTemplate = () => {
-    const templateData = [{ "Tenant": "almoseguridad", "Nube": "AWS", "Instance Name": "prod-web-01", "IP Publica": "1.2.3.4", "IP Privada": "10.0.0.1", "Instance Type": "t3.medium", "CPU": 2, "RAM": "4GB", "Storage": "50", "Sistema Operativo": "Ubuntu 22.04", "Costo USD": "50.00", "Hostname": "ip-10-0-0-1", "Responsable": "Juan Pérez", "Modo Uso": "Producción", "Service": "web" }]
+    const templateData = [{ "Tenant": "almoseguridad", "Nube": "AWS", "Instance Name": "prod-web-01", "IP Publica": "1.2.3.4", "IP Privada": "10.0.0.1", "Instance Type": "t3.medium", "CPU": 2, "RAM": "4GB", "Storage": "50", "Sistema Operativo": "Ubuntu 22.04", "Costo USD": "50.00", "Hostname": "ip-10-0-0-1", "Antivirus": "Windows Defender", "Responsable": "Juan Pérez", "Modo Uso": "Producción", "Service": "web" }]
     const ws = XLSX.utils.json_to_sheet(templateData)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "InventarioCloud")
-    ws["!cols"] = [{wch: 15}, {wch: 10}, {wch: 20}, {wch: 12}, {wch: 12}, {wch: 15}, {wch: 5}, {wch: 8}, {wch: 12}, {wch: 18}, {wch: 12}, {wch: 15}, {wch: 15}, {wch: 12}, {wch: 10}]
+    ws["!cols"] = [{wch: 15}, {wch: 10}, {wch: 20}, {wch: 12}, {wch: 12}, {wch: 15}, {wch: 5}, {wch: 8}, {wch: 12}, {wch: 18}, {wch: 12}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 12}, {wch: 10}]
     XLSX.writeFile(wb, "plantilla_importacion_cloud.xlsx")
     toast({ title: "Plantilla descargada correctamente" })
   }
@@ -191,7 +198,7 @@ export default function InventoryCloud() {
             <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" id="file-upload-cloud" />
             <Button variant="outline" type="button"><Upload className="w-4 h-4 mr-2" />Importar</Button>
           </div>
-          <Button variant="outline" onClick={exportToExcel}><Download className="w-4 h-4 mr-2" />Exportar</Button>
+          <Button variant="outline" onClick={exportToExcel} disabled={!canExport}><Download className="w-4 h-4 mr-2" />Exportar</Button>
           <Button variant="outline" onClick={() => setColumnsDialogOpen(true)}><Columns2 className="w-4 h-4 mr-2" />Columnas</Button>
           {selectMode ? (
             <><Button variant="outline" onClick={() => { setSelectMode(false); setSelectedIds([]) }}><X className="w-4 h-4 mr-2" />Cancelar</Button>
@@ -199,7 +206,7 @@ export default function InventoryCloud() {
           ) : (
             <Button onClick={() => setSelectMode(true)}><Check className="w-4 h-4 mr-2" />Seleccionar</Button>
           )}
-          <Button onClick={() => { setFormData(emptyItem); setEditingItem(null); setIsDialogOpen(true) }}><Plus className="w-4 h-4 mr-2" />Nueva Instancia</Button>
+          <Button onClick={() => { setFormData(emptyItem); setEditingItem(null); setIsDialogOpen(true) }} disabled={!canCreate}><Plus className="w-4 h-4 mr-2" />Nueva Instancia</Button>
         </div>
       </div>
 
@@ -231,7 +238,7 @@ export default function InventoryCloud() {
                       <TableRow key={item.id} className={selectedIds.includes(item.id) ? "bg-blue-50" : ""}>
                         {selectMode && (<TableCell><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => toggleSelect(item.id)} className="w-4 h-4" /></TableCell>)}
                         {allColumns.filter(c => visibleColumns.includes(c.key)).map(col => (<TableCell key={col.key} className="px-2 py-2 text-sm">{renderCell(item, col.key)}</TableCell>))}
-                        {!selectMode && (<TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => handleEdit(item)}><Pencil className="w-4 h-4" /></Button><Button variant="ghost" size="sm" onClick={() => confirmDelete(item.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button></TableCell>)}
+                        {!selectMode && (<TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => handleEdit(item)} disabled={!canEdit}><Pencil className="w-4 h-4" /></Button><Button variant="ghost" size="sm" onClick={() => confirmDelete(item.id)} disabled={!canDelete}><Trash2 className="w-4 h-4 text-red-500" /></Button></TableCell>)}
                       </TableRow>)))}
                 </TableBody>
               </Table>
