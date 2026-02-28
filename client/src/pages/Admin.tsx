@@ -22,7 +22,8 @@ import {
   getUsuarios, createUsuario, updateUsuario, deleteUsuario,
   getRoles, createRol, updateRol, deleteRol,
   getPermisos, getModulos, createModulo, updateModulo, deleteModulo,
-  getBackups, createBackup, restoreBackup, deleteBackup, downloadBackup
+  getBackups, createBackup, restoreBackup, deleteBackup, downloadBackup,
+  resetPassword
 } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
 import { Users, Plus, Shield, Trash2, Edit, Mail, Send, Save, TestTube, CheckCircle, XCircle, Database, Download, RotateCcw, AlertTriangle } from 'lucide-react'
@@ -270,14 +271,17 @@ export default function Admin() {
         })
         toast({ title: 'Usuario actualizado correctamente' })
       } else {
-        await createUsuario({
+        const result: any = await createUsuario({
           email: usuarioForm.email,
           nombre: usuarioForm.nombre,
           password: usuarioForm.password,
           rolIds: usuarioForm.rolIds,
-          activo: usuarioForm.activo
+          activo: usuarioForm.activo,
+          enviarInvitacion: true
         })
-        toast({ title: 'Usuario creado correctamente' })
+        toast({ 
+          title: result?.invitacionEnviada ? 'Usuario creado e invitación enviada' : 'Usuario creado correctamente'
+        })
       }
       setIsUsuarioDialogOpen(false)
       resetUsuarioForm()
@@ -372,6 +376,20 @@ export default function Admin() {
       await deleteUsuario(id)
       toast({ title: 'Usuario eliminado' })
       loadData()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    }
+  }
+
+  const handleResetPassword = async (userId: number, userName: string) => {
+    if (!confirm(`¿Resetear contraseña de ${userName}? Se le enviará una contraseña temporal por correo.`)) return
+    
+    try {
+      const res = await resetPassword(userId)
+      toast({ 
+        title: res.message,
+        description: res.warning
+      })
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message })
     }
@@ -653,6 +671,9 @@ export default function Admin() {
                         <div className="flex gap-2 justify-end">
                           <Button variant="outline" size="sm" onClick={() => openUsuarioDialog(usuario)}>
                             <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleResetPassword(usuario.id, usuario.nombre)} title="Resetear contraseña">
+                            <RotateCcw className="w-4 h-4" />
                           </Button>
                           <Button variant="outline" size="sm" className="text-red-600" onClick={() => handleDeleteUsuario(usuario.id)}>
                             <Trash2 className="w-4 h-4" />

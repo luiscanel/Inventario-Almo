@@ -291,9 +291,11 @@ router.get('/usuarios', async (req, res) => {
 // Create usuario
 router.post('/usuarios', async (req, res) => {
   try {
-    const { email, nombre, password, rolIds, activo } = req.body
+    const { email, nombre, password, rolIds, activo, enviarInvitacion } = req.body
 
-    const hashedPassword = await bcrypt.hash(password, 12)
+    // Generar contraseña temporal si no se proporciona
+    const tempPassword = password || Math.random().toString(36).slice(-8) + 'A1!'
+    const hashedPassword = await bcrypt.hash(tempPassword, 12)
 
     const usuario = await prisma.user.create({
       data: {
@@ -302,11 +304,39 @@ router.post('/usuarios', async (req, res) => {
         password: hashedPassword,
         rol: 'user',
         activo: activo !== false,
+        debeCambiarPass: true, // Force password change on first login
         usuarioRoles: rolIds?.length ? {
           create: rolIds.map((rolId: number) => ({ rolId }))
         } : undefined
       }
     })
+
+    // Enviar invitación por email si se solicita
+    if (enviarInvitacion) {
+      try {
+        const { sendEmail } = await import('../services/email.js')
+        await sendEmail({
+          to: usuario.email,
+          subject: 'Invitación a Inventario Almo',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Hola ${usuario.nombre},</h2>
+              <p>Has sido invitado al sistema de Inventario Almo.</p>
+              <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0;"><strong>Tus credenciales de acceso:</strong></p>
+                <p style="margin: 10px 0 0 0;">Email: <strong>${usuario.email}</strong></p>
+                <p style="margin: 5px 0 0 0;">Contraseña temporal: <strong>${tempPassword}</strong></p>
+              </div>
+              <p><strong>Importante:</strong> Al iniciar sesión por primera vez, debes cambiar tu contraseña.</p>
+              <p>Accede en: <a href="http://localhost:5174">http://localhost:5174</a></p>
+              <p>Saludos,<br>Equipo de Inventario Almo</p>
+            </div>
+          `
+        })
+      } catch (emailError) {
+        console.error('Error sending invitation email:', emailError)
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -317,7 +347,8 @@ router.post('/usuarios', async (req, res) => {
         rol: usuario.rol,
         activo: usuario.activo,
         createdAt: usuario.createdAt
-      }
+      },
+      invitacionEnviada: !!enviarInvitacion
     })
   } catch (error: any) {
     if (error.code === 'P2002') {

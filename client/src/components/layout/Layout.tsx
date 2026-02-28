@@ -2,7 +2,12 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
-import { Search, LayoutDashboard, Server, HardDrive, FileText, Users, LogOut, Menu, Shield, Cpu, Activity, User, Cloud, ChevronRight } from 'lucide-react'
+import { Search, LayoutDashboard, Server, HardDrive, FileText, Users, LogOut, Menu, Shield, Cpu, Activity, User, Cloud, ChevronRight, Key } from 'lucide-react'
+import { changePassword } from '@/lib/api'
+import { useToast } from '@/components/ui/use-toast'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 
 const modulos = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', permiso: null },
@@ -23,6 +28,12 @@ export default function Layout() {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
+  const { toast } = useToast()
 
   const navItems = permisos.length > 0 
     ? modulos.filter(m => !m.permiso || tienePermiso(m.permiso.modulo, m.permiso.accion))
@@ -31,6 +42,31 @@ export default function Layout() {
   const handleLogout = () => {
     logout()
     navigate('/login')
+  }
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Las contraseñas no coinciden' })
+      return
+    }
+    if (newPassword.length < 6) {
+      toast({ variant: 'destructive', title: 'Error', description: 'La contraseña debe tener al menos 6 caracteres' })
+      return
+    }
+
+    setChangingPassword(true)
+    try {
+      await changePassword(currentPassword, newPassword)
+      toast({ title: 'Contraseña actualizada correctamente' })
+      setPasswordDialogOpen(false)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    } finally {
+      setChangingPassword(false)
+    }
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -123,19 +159,26 @@ export default function Layout() {
           </form>
 
           <div className="flex items-center gap-2 ml-4">
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-md shadow-blue-500/20">
-              <span className="text-sm font-semibold text-white">
-                {user?.nombre?.charAt(0).toUpperCase() || 'U'}
-              </span>
+            <div className="flex items-center gap-2 pr-4 border-r">
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-md shadow-blue-500/20 cursor-pointer" onClick={() => setPasswordDialogOpen(true)}>
+                <span className="text-sm font-semibold text-white">
+                  {user?.nombre?.charAt(0).toUpperCase() || 'U'}
+                </span>
+              </div>
+              <div className="hidden md:block">
+                <p className="text-sm font-medium text-slate-700">{user?.nombre}</p>
+                <p className="text-xs text-slate-500">{user?.email}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-500 hover:text-red-600 hover:bg-red-50"
+                onClick={handleLogout}
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-full"
-              onClick={handleLogout}
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
           </div>
         </header>
 
@@ -143,6 +186,53 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Dialog para cambiar contraseña */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="w-5 h-5" />
+              Cambiar Contraseña
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Contraseña Actual</Label>
+              <Input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Ingrese su contraseña actual"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nueva Contraseña</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Confirmar Nueva Contraseña</Label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repita la nueva contraseña"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleChangePassword} disabled={changingPassword}>
+              {changingPassword ? 'Cambiando...' : 'Cambiar Contraseña'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

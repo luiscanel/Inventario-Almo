@@ -66,6 +66,27 @@ export async function login(email: string, password: string): Promise<LoginRespo
 }
 
 // ============================================
+// Password Management
+// ============================================
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_URL}/auth/change-password`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+  return handleResponse<{ success: boolean; message: string }>(res)
+}
+
+export async function resetPassword(userId: number): Promise<{ success: boolean; message: string; warning?: string }> {
+  const res = await fetch(`${API_URL}/auth/reset-password/${userId}`, {
+    method: 'POST',
+    headers: getHeaders(),
+  })
+  return handleResponse<{ success: boolean; message: string; warning?: string }>(res)
+}
+
+// ============================================
 // Servidores
 // ============================================
 
@@ -333,7 +354,7 @@ export async function getUsuarios(): Promise<Usuario[]> {
   return handleResponse<Usuario[]>(res)
 }
 
-export async function createUsuario(data: { email: string; nombre: string; password: string; rolIds?: number[]; activo?: boolean }): Promise<Usuario> {
+export async function createUsuario(data: { email: string; nombre: string; password: string; rolIds?: number[]; activo?: boolean; enviarInvitacion?: boolean }): Promise<Usuario> {
   const res = await fetch(`${API_URL}/admin/usuarios`, {
     method: 'POST',
     headers: getHeaders(),
