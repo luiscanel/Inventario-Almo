@@ -9,6 +9,7 @@ import dashboardRoutes from './routes/dashboard'
 import dashboardNewRoutes from './routes/dashboardNew'
 import adminRoutes from './routes/admin'
 import emailRoutes from './routes/email'
+import backupRoutes from './routes/backup'
 
 // Importar configuración y seguridad
 import { config } from './config/index.js'
@@ -71,6 +72,7 @@ app.use('/api/inventario-fisico', inventarioFisicoRoutes)
 app.use('/api/inventario-cloud', inventarioCloudRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/email', emailRoutes)
+app.use('/api/backup', backupRoutes)
 
 // ============================================
 // HEALTH CHECK

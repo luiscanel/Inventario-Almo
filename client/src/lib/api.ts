@@ -466,3 +466,57 @@ export async function bulkDeleteInventarioCloud(ids: number[]): Promise<{ messag
   })
   return handleResponse<{ message: string }>(res)
 }
+
+// ============================================
+// Backup
+// ============================================
+
+export interface Backup {
+  name: string
+  size: number
+  sizeFormatted: string
+  createdAt: string
+  path: string
+}
+
+export async function getBackups(): Promise<Backup[]> {
+  const res = await fetch(`${API_URL}/backup/backups`, {
+    headers: getHeaders(),
+  })
+  return handleResponse<Backup[]>(res)
+}
+
+export async function createBackup(): Promise<{ success: boolean; message: string; data: any }> {
+  const res = await fetch(`${API_URL}/backup/backups`, {
+    method: 'POST',
+    headers: getHeaders(),
+  })
+  return handleResponse<{ success: boolean; message: string; data: any }>(res)
+}
+
+export async function restoreBackup(filename: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_URL}/backup/backups/restore`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ filename }),
+  })
+  return handleResponse<{ success: boolean; message: string }>(res)
+}
+
+export async function deleteBackup(filename: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_URL}/backup/backups/${filename}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  })
+  return handleResponse<{ success: boolean; message: string }>(res)
+}
+
+export async function downloadBackup(filename: string): Promise<Blob> {
+  const res = await fetch(`${API_URL}/backup/backups/download/${filename}`, {
+    headers: getHeaders(),
+  })
+  if (!res.ok) {
+    throw new Error('Error al descargar backup')
+  }
+  return res.blob()
+}

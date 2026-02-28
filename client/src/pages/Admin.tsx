@@ -21,10 +21,11 @@ import {
 import { 
   getUsuarios, createUsuario, updateUsuario, deleteUsuario,
   getRoles, createRol, updateRol, deleteRol,
-  getPermisos, getModulos, createModulo, updateModulo, deleteModulo
+  getPermisos, getModulos, createModulo, updateModulo, deleteModulo,
+  getBackups, createBackup, restoreBackup, deleteBackup, downloadBackup
 } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
-import { Users, Plus, Shield, Trash2, Edit, Mail, Send, Save, TestTube, CheckCircle, XCircle } from 'lucide-react'
+import { Users, Plus, Shield, Trash2, Edit, Mail, Send, Save, TestTube, CheckCircle, XCircle, Database, Download, RotateCcw, AlertTriangle } from 'lucide-react'
 import type { Usuario } from '@/types/api'
 
 // Tipos locales
@@ -63,13 +64,21 @@ interface EmailConfig {
   activo: boolean
 }
 
+interface Backup {
+  name: string
+  size: number
+  sizeFormatted: string
+  createdAt: string
+  path: string
+}
+
 export default function Admin() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [modulos, setModulos] = useState<Modulo[]>([])
   const [roles, setRoles] = useState<Rol[]>([])
   const [permisos, setPermisos] = useState<PermisoData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'usuarios' | 'modulos' | 'roles' | 'email'>('usuarios')
+  const [activeTab, setActiveTab] = useState<'usuarios' | 'modulos' | 'roles' | 'email' | 'backups'>('usuarios')
   
   // Email state
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({
@@ -86,6 +95,13 @@ export default function Admin() {
   const [emailTesting, setEmailTesting] = useState(false)
   const [testEmail, setTestEmail] = useState('')
   const [sendingReport, setSendingReport] = useState(false)
+  
+  // Backup state
+  const [backups, setBackups] = useState<Backup[]>([])
+  const [backupsLoading, setBackupsLoading] = useState(false)
+  const [creatingBackup, setCreatingBackup] = useState(false)
+  const [restoringBackup, setRestoringBackup] = useState(false)
+  const [backupToRestore, setBackupToRestore] = useState<Backup | null>(null)
   
   // Dialogs
   const [isUsuarioDialogOpen, setIsUsuarioDialogOpen] = useState(false)
@@ -266,6 +282,84 @@ export default function Admin() {
       setIsUsuarioDialogOpen(false)
       resetUsuarioForm()
       loadData()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    }
+  }
+
+  // ========================
+  // BACKUP
+  // ========================
+  const loadBackups = async () => {
+    setBackupsLoading(true)
+    try {
+      const data = await getBackups()
+      setBackups(data)
+    } catch (error: any) {
+      console.error('Error:', error)
+    } finally {
+      setBackupsLoading(false)
+    }
+  }
+
+  const handleCreateBackup = async () => {
+    setCreatingBackup(true)
+    try {
+      const res = await createBackup()
+      if (res.success) {
+        toast({ title: 'Backup creado correctamente' })
+        loadBackups()
+      } else {
+        throw new Error(res.message)
+      }
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    } finally {
+      setCreatingBackup(false)
+    }
+  }
+
+  const handleRestoreBackup = async () => {
+    if (!backupToRestore) return
+    setRestoringBackup(true)
+    try {
+      const res = await restoreBackup(backupToRestore.name)
+      if (res.success) {
+        toast({ title: 'Restauración exitosa', description: res.message })
+        setBackupToRestore(null)
+      } else {
+        throw new Error(res.message)
+      }
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    } finally {
+      setRestoringBackup(false)
+    }
+  }
+
+  const handleDeleteBackup = async (filename: string) => {
+    if (!confirm('¿Estás seguro de eliminar este backup?')) return
+    
+    try {
+      await deleteBackup(filename)
+      toast({ title: 'Backup eliminado' })
+      loadBackups()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message })
+    }
+  }
+
+  const handleDownloadBackup = async (backup: Backup) => {
+    try {
+      const blob = await downloadBackup(backup.name)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = backup.name
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message })
     }
@@ -498,10 +592,17 @@ export default function Admin() {
         </Button>
         <Button
           variant={activeTab === 'email' ? 'default' : 'ghost'}
-          onClick={() => setActiveTab('email')}
+          onClick={() => { setActiveTab('email'); loadEmailConfig(); }}
         >
           <Mail className="w-4 h-4 mr-2" />
           Email
+        </Button>
+        <Button
+          variant={activeTab === 'backups' ? 'default' : 'ghost'}
+          onClick={() => { setActiveTab('backups'); loadBackups(); }}
+        >
+          <Database className="w-4 h-4 mr-2" />
+          Backups
         </Button>
       </div>
 
@@ -858,6 +959,84 @@ export default function Admin() {
         </div>
       )}
 
+      {/* BACKUPS TAB */}
+      {activeTab === 'backups' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-semibold">Gestión de Backups</h3>
+              <p className="text-sm text-gray-500">Cree, restaure o elimine copias de seguridad de la base de datos</p>
+            </div>
+            <Button onClick={handleCreateBackup} disabled={creatingBackup}>
+              <Database className="w-4 h-4 mr-2" />
+              {creatingBackup ? 'Creando...' : 'Crear Backup'}
+            </Button>
+          </div>
+
+          {backupsLoading ? (
+            <div className="text-center py-8 text-gray-500">Cargando backups...</div>
+          ) : backups.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-gray-500">
+                <Database className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No hay backups disponibles</p>
+                <p className="text-sm">Cree un backup para proteger sus datos</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Tamaño</TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {backups.map((backup) => (
+                      <TableRow key={backup.name}>
+                        <TableCell className="font-mono text-sm">{backup.name}</TableCell>
+                        <TableCell>{backup.sizeFormatted}</TableCell>
+                        <TableCell>{new Date(backup.createdAt).toLocaleString('es-ES')}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadBackup(backup)}
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setBackupToRestore(backup)}
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => handleDeleteBackup(backup.name)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* USUARIO DIALOG */}
       <Dialog open={isUsuarioDialogOpen} onOpenChange={setIsUsuarioDialogOpen}>
         <DialogContent>
@@ -1049,6 +1228,45 @@ export default function Admin() {
               <Button type="submit">{editingRol ? 'Actualizar' : 'Crear'}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* RESTORE BACKUP DIALOG */}
+      <Dialog open={!!backupToRestore} onOpenChange={(open) => !open && setBackupToRestore(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-500" />
+              Confirmar Restauración
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <p className="text-yellow-800 font-medium">⚠️ Advertencia</p>
+              <p className="text-yellow-700 text-sm mt-1">
+                Esta acción reemplazará la base de datos actual con el backup seleccionado.
+                Todos los datos actuales se perderán.
+              </p>
+            </div>
+            {backupToRestore && (
+              <div className="space-y-2">
+                <p><span className="font-medium">Backup:</span> {backupToRestore.name}</p>
+                <p><span className="font-medium">Fecha:</span> {new Date(backupToRestore.createdAt).toLocaleString('es-ES')}</p>
+                <p><span className="font-medium">Tamaño:</span> {backupToRestore.sizeFormatted}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBackupToRestore(null)}>Cancelar</Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleRestoreBackup}
+              disabled={restoringBackup}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              {restoringBackup ? 'Restaurando...' : 'Restaurar'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
