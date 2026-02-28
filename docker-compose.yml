@@ -4,8 +4,6 @@ services:
       context: .
       dockerfile: server/Dockerfile
     container_name: inventario-almo-backend
-    ports:
-      - "3001:3001"
     volumes:
       - inventario_almo_db:/app/prisma
       - inventario_almo_backups:/app/backups
@@ -29,8 +27,6 @@ services:
       context: .
       dockerfile: client/Dockerfile
     container_name: inventario-almo-frontend
-    ports:
-      - "5174:5174"
     environment:
       - VITE_API_URL=http://localhost:3001
     restart: unless-stopped

@@ -222,11 +222,10 @@ router.post('/reset-password/:userId', authMiddleware, async (req, res) => {
     const adminUser = await prisma.user.findUnique({ where: { id: adminId } })
     
     try {
-      await sendEmail({
-        to: usuario.email,
-        subject: 'Restablecimiento de contraseña - Inventario Almo',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      await sendEmail(
+        usuario.email,
+        'Restablecimiento de contraseña - Inventario Almo',
+        `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2>Hola ${usuario.nombre},</h2>
             <p>Un administrador ha restablecido tu contraseña.</p>
             <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -235,9 +234,8 @@ router.post('/reset-password/:userId', authMiddleware, async (req, res) => {
             </div>
             <p><strong>Importante:</strong> Esta contraseña es temporal y debes cambiarla en tu primer inicio de sesión.</p>
             <p>Saludos,<br>Equipo de Inventario Almo</p>
-          </div>
-        `
-      })
+          </div>`
+      )
     } catch (emailError) {
       console.error('Email error:', emailError)
       // No fallamos si el email falla, pero devolvemos warning

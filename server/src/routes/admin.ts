@@ -315,11 +315,10 @@ router.post('/usuarios', async (req, res) => {
     if (enviarInvitacion) {
       try {
         const { sendEmail } = await import('../services/email.js')
-        await sendEmail({
-          to: usuario.email,
-          subject: 'Invitación a Inventario Almo',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        await sendEmail(
+          usuario.email,
+          'Invitación a Inventario Almo',
+          `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2>Hola ${usuario.nombre},</h2>
               <p>Has sido invitado al sistema de Inventario Almo.</p>
               <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -330,9 +329,8 @@ router.post('/usuarios', async (req, res) => {
               <p><strong>Importante:</strong> Al iniciar sesión por primera vez, debes cambiar tu contraseña.</p>
               <p>Accede en: <a href="http://localhost:5174">http://localhost:5174</a></p>
               <p>Saludos,<br>Equipo de Inventario Almo</p>
-            </div>
-          `
-        })
+            </div>`
+        )
       } catch (emailError) {
         console.error('Error sending invitation email:', emailError)
       }
