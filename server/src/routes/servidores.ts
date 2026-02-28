@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../prisma/index'
 import { authMiddleware } from '../middleware/auth'
 import { validate, servidorSchema, servidorUpdateSchema, servidorImportSchema, bulkDeleteSchema } from '../validations/index.js'
+import { createAuditLog, getRequestInfo } from '../services/auditLogService.js'
 
 const router = Router()
 
@@ -31,6 +32,19 @@ router.post('/', validate(servidorSchema), async (req, res) => {
       data: req.body
     })
     res.status(201).json({ success: true, data: servidor })
+
+    // Audit log
+    const userId = (req as any).user?.id
+    const userEmail = (req as any).user?.email
+    createAuditLog({
+      usuarioId: userId,
+      usuario: userEmail,
+      accion: 'create',
+      entidad: 'Servidor',
+      entidadId: servidor.id,
+      datosNuevos: req.body,
+      ...getRequestInfo(req)
+    })
   } catch (error) {
     console.error('Error:', error)
     res.status(500).json({ 
@@ -64,8 +78,26 @@ router.put('/:id', validate(servidorUpdateSchema), async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params
+    const idNum = parseInt(id)
+    
+    // Obtener datos antes de eliminar
+    const servidorPrev = await prisma.servidor.findUnique({ where: { id: idNum } })
+    
     await prisma.servidor.delete({
-      where: { id: parseInt(id) }
+      where: { id: idNum }
+    })
+
+    // Audit log
+    const userId = (req as any).user?.id
+    const userEmail = (req as any).user?.email
+    createAuditLog({
+      usuarioId: userId,
+      usuario: userEmail,
+      accion: 'delete',
+      entidad: 'Servidor',
+      entidadId: idNum,
+      datosPrevios: servidorPrev,
+      ...getRequestInfo(req)
     })
     res.json({ success: true, message: 'Servidor eliminado' })
   } catch (error) {

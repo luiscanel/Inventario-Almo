@@ -161,3 +161,20 @@ model EmailConfig {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// ============================================
+// AUDIT LOG - Historial de cambios
+// ============================================
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  usuarioId   Int?
+  usuario     String?  // Nombre o email del usuario
+  accion      String   // login, create, update, delete, export, import
+  entidad     String   // User, Servidor, InventarioFisico, etc.
+  entidadId   Int?     // ID del registro afectado
+  datosPrevios String? // JSON con datos anteriores
+  datosNuevos String?  // JSON con datos nuevos
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}

@@ -1,25 +1,9 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
-import { 
-  LayoutDashboard, 
-  Server, 
-  HardDrive,
-  FileText, 
-  Users, 
-  LogOut,
-  Menu,
-  X,
-  Shield,
-  Cpu,
-  Activity,
-  User,
-  Cloud
-} from 'lucide-react'
 import { useState } from 'react'
+import { Search, LayoutDashboard, Server, HardDrive, FileText, Users, LogOut, Menu, Shield, Cpu, Activity, User, Cloud, ChevronRight } from 'lucide-react'
 
-// Definición de módulos con sus permisos requeridos
-// Si no tiene permiso, igual se muestra pero podría redireccionar
 const modulos = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', permiso: null },
   { to: '/inventory', icon: Server, label: 'Inv. Onpremise', permiso: { modulo: 'inventario_servidores', accion: 'ver' } },
@@ -38,8 +22,8 @@ export default function Layout() {
   const { user, logout, permisos, tienePermiso } = useAuthStore()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // Solo filtrar si ya tenemos permisos cargados, si no mostrar todo
   const navItems = permisos.length > 0 
     ? modulos.filter(m => !m.permiso || tienePermiso(m.permiso.modulo, m.permiso.accion))
     : modulos
@@ -49,34 +33,43 @@ export default function Layout() {
     navigate('/login')
   }
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      navigate(`/?search=${encodeURIComponent(searchQuery.trim())}`)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-mesh">
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
       
       <aside className={`
-        fixed top-0 left-0 z-50 h-full w-64 bg-slate-900 text-white transition-transform duration-300 lg:translate-x-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        fixed top-0 left-0 z-50 h-full w-72 
+        bg-slate-900/95 backdrop-blur-xl text-white 
+        transition-all duration-300 ease-out
+        border-r border-slate-700/50
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
       `}>
-        <div className="flex items-center justify-between h-16 px-4 border-b border-slate-800">
+        {/* Logo */}
+        <div className="h-20 px-6 flex items-center justify-center border-b border-slate-700/50">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-              <Server className="w-5 h-5" />
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <Server className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg">Inventario Almo</span>
+            <div>
+              <span className="font-bold text-lg tracking-tight">Inventario</span>
+              <span className="font-bold text-lg text-blue-400"> Almo</span>
+            </div>
           </div>
-          <button 
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1 hover:bg-slate-800 rounded"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
         
+        {/* Navigation */}
         <nav className="p-4 space-y-1">
           {navItems.map((item) => (
             <NavLink
@@ -84,50 +77,61 @@ export default function Layout() {
               to={item.to}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                `group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                   isActive 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25' 
+                    : 'text-slate-400 hover:bg-slate-800/80 hover:text-white'
                 }`
               }
               end={item.to === '/'}
             >
-              <item.icon className="w-5 h-5" />
-              <span>{item.label}</span>
+              <div className={`p-2 rounded-lg ${true ? 'bg-slate-800/50' : ''} group-hover:bg-slate-700/50 transition-colors`}>
+                <item.icon className="w-5 h-5" />
+              </div>
+              <span className="font-medium">{item.label}</span>
+              {true && (
+                <ChevronRight className="w-4 h-4 ml-auto opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+              )}
             </NavLink>
           ))}
         </nav>
-
-
       </aside>
 
-      <div className="lg:ml-64">
-        <header className="h-16 bg-white border-b flex items-center justify-between px-4 sticky top-0 z-30">
+      <div className="lg:ml-72">
+        <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 flex items-center justify-between px-6 sticky top-0 z-30">
           <button 
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+            className="lg:hidden p-2.5 hover:bg-slate-100 rounded-xl transition-colors"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-5 h-5 text-slate-600" />
           </button>
           
-          <div className="flex-1 lg:flex-none" />
+          <div className="flex-1" />
           
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
-              <div className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-xs font-medium text-white">
-                  {user?.nombre?.charAt(0).toUpperCase() || 'U'}
-                </span>
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-sm font-medium text-gray-800">{user?.nombre || 'Usuario'}</p>
-                <p className="text-xs text-gray-500 capitalize">{user?.rol || 'Usuario'}</p>
-              </div>
+          {/* Search */}
+          <form onSubmit={handleSearch} className="hidden md:flex items-center gap-4">
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Buscar servidores, inventario..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-72 pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            </div>
+          </form>
+
+          <div className="flex items-center gap-2 ml-4">
+            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-md shadow-blue-500/20">
+              <span className="text-sm font-semibold text-white">
+                {user?.nombre?.charAt(0).toUpperCase() || 'U'}
+              </span>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full px-3"
+              className="text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-full"
               onClick={handleLogout}
             >
               <LogOut className="w-4 h-4" />

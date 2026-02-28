@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import { prisma } from '../prisma/index'
 import { config } from '../config/index.js'
 import { validate, loginSchema } from '../validations/index.js'
+import { createAuditLog, getRequestInfo } from '../services/auditLogService.js'
 
 const router = Router()
 
@@ -98,6 +99,16 @@ router.post('/login', validate(loginSchema), async (req, res) => {
         modulos,
         permisos
       }
+    })
+
+    // Audit log de login
+    createAuditLog({
+      usuarioId: usuario.id,
+      usuario: usuario.email,
+      accion: 'login',
+      entidad: 'User',
+      entidadId: usuario.id,
+      ...getRequestInfo(req)
     })
   } catch (error) {
     console.error('Login error:', error)
